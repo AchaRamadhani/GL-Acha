@@ -7,9 +7,7 @@
     <link rel="stylesheet" href="<?= htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8') ?>/assets/css/style.css">
 </head>
 <body>
-    <main>
-        <?= $content ?? '' ?>
-    </main>
+    <?= $content ?? '' ?>
     <script src="<?= htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8') ?>/assets/js/app.js"></script>
 </body>
 </html>
