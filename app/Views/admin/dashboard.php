@@ -4,11 +4,11 @@ $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin', 'active' => true],
     ['icon' => '&#128203;', 'label' => 'Data Cucian', 'href' => '/admin/cucian'],
-    ['icon' => '&#128722;', 'label' => 'Transaksi', 'href' => '/admin'],
-    ['icon' => '&#8635;', 'label' => 'Update Status', 'href' => '/admin'],
-    ['icon' => '&#128101;', 'label' => 'Pelanggan', 'href' => '/admin'],
-    ['icon' => '&#9672;', 'label' => 'Paket Laundry', 'href' => '/admin'],
-    ['icon' => '&#9881;', 'label' => 'Pengaturan', 'href' => '/admin'],
+    ['icon' => '&#128722;', 'label' => 'Transaksi', 'href' => '/admin/transaksi'],
+    ['icon' => '&#8635;', 'label' => 'Update Status', 'href' => '/admin/update-status'],
+    ['icon' => '&#128101;', 'label' => 'Pelanggan', 'href' => '/admin/pelanggan'],
+    ['icon' => '&#9672;', 'label' => 'Paket Laundry', 'href' => '/admin/paket-laundry'],
+    ['icon' => '&#9881;', 'label' => 'Pengaturan', 'href' => '/admin/pengaturan'],
 ];
 
 $summaryCards = [

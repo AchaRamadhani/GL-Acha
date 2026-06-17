@@ -33,4 +33,39 @@ class HomeController extends Controller
             'title' => 'Data Cucian - Ghava Laundry',
         ]);
     }
+
+    public function adminTransaksi(): void
+    {
+        $this->view('admin/transaksi', [
+            'title' => 'Transaksi - Ghava Laundry',
+        ]);
+    }
+
+    public function adminUpdateStatus(): void
+    {
+        $this->view('admin/update-status', [
+            'title' => 'Update Status - Ghava Laundry',
+        ]);
+    }
+
+    public function adminPelanggan(): void
+    {
+        $this->view('admin/pelanggan', [
+            'title' => 'Pelanggan - Ghava Laundry',
+        ]);
+    }
+
+    public function adminPaketLaundry(): void
+    {
+        $this->view('admin/paket-laundry', [
+            'title' => 'Paket Laundry - Ghava Laundry',
+        ]);
+    }
+
+    public function adminPengaturan(): void
+    {
+        $this->view('admin/pengaturan', [
+            'title' => 'Pengaturan - Ghava Laundry',
+        ]);
+    }
 }
