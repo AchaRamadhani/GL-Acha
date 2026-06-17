@@ -3,6 +3,9 @@
 use App\Controllers\HomeController;
 
 $router->get('/', [HomeController::class, 'index']);
+$router->get('/tracking-cucian', [HomeController::class, 'tracking']);
+$router->get('/layanan', [HomeController::class, 'layanan']);
+$router->get('/kontak', [HomeController::class, 'kontak']);
 $router->get('/admin', [HomeController::class, 'adminDashboard']);
 $router->get('/admin/cucian', [HomeController::class, 'adminCucian']);
 $router->get('/admin/transaksi', [HomeController::class, 'adminTransaksi']);

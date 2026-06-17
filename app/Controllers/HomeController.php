@@ -13,6 +13,27 @@ class HomeController extends Controller
         ]);
     }
 
+    public function tracking(): void
+    {
+        $this->view('home/tracking', [
+            'title' => 'Tracking Cucian - Ghava Laundry',
+        ]);
+    }
+
+    public function layanan(): void
+    {
+        $this->view('home/layanan', [
+            'title' => 'Layanan - Ghava Laundry',
+        ]);
+    }
+
+    public function kontak(): void
+    {
+        $this->view('home/kontak', [
+            'title' => 'Kontak - Ghava Laundry',
+        ]);
+    }
+
     public function adminLogin(): void
     {
         $this->view('admin/login', [
