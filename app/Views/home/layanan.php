@@ -1,6 +1,7 @@
 <?php ob_start(); ?>
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
 
 $serviceIcons = [
     'washer' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect x="14" y="7" width="36" height="50" rx="4"></rect><line x1="14" y1="17" x2="50" y2="17"></line><circle cx="23" cy="12" r="1.8"></circle><circle cx="30" cy="12" r="1.8"></circle><circle cx="32" cy="38" r="13"></circle><path d="M22 39c4 4 9 4 13 0s7-4 9-1"></path></svg>',
@@ -15,7 +16,7 @@ $serviceIcons = [
     'bag' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M18 24h28l4 29H14l4-29z"></path><path d="M24 24v-5a8 8 0 0 1 16 0v5"></path></svg>',
     'info' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="23"></circle><line x1="32" y1="29" x2="32" y2="44"></line><circle cx="32" cy="21" r="1.8"></circle></svg>',
     'star' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M32 8l7 15 17 2-12 12 3 17-15-8-15 8 3-17L8 25l17-2 7-15z"></path></svg>',
-    'whatsapp' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="24"></circle><path d="M21 47l2-8a17 17 0 1 1 7 5l-9 3z"></path><path d="M25 25c1 8 7 14 15 16l4-5-5-3-3 2c-3-2-5-4-7-7l2-3-3-5-3 5z"></path></svg>',
+    'whatsapp' => $whatsappLogo,
     'clock' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="23"></circle><path d="M32 17v16l11 7"></path></svg>',
     'pin' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M32 58s19-17 19-33a19 19 0 0 0-38 0c0 16 19 33 19 33z"></path><circle cx="32" cy="25" r="7"></circle></svg>',
     'shop' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M12 27h40l-4-15H16l-4 15z"></path><path d="M16 27v24h32V27"></path><path d="M23 51V37h18v14"></path><line x1="10" y1="27" x2="54" y2="27"></line></svg>',

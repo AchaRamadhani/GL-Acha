@@ -315,6 +315,18 @@ button {
     font-weight: 900;
 }
 
+.whatsapp-button .whatsapp-button-icon {
+    width: 28px;
+    height: 28px;
+    border: 0;
+}
+
+.whatsapp-button .whatsapp-button-icon img {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 .login-note {
     display: flex;
     align-items: center;
@@ -3230,6 +3242,12 @@ main {
     font-size: 9px;
 }
 
+.laundry-actions .wa img {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
 .laundry-pagination {
     display: grid;
     grid-template-columns: 1fr auto auto;
@@ -3490,6 +3508,12 @@ main {
     font-size: 10px;
 }
 
+.transaction-actions .wa img {
+    display: block;
+    width: 23px;
+    height: 23px;
+}
+
 .transaction-pagination {
     grid-template-columns: 1fr auto;
 }
@@ -3590,6 +3614,16 @@ main {
 
 .transaction-activity-list .activity-item > span {
     font-size: 12px;
+}
+
+.transaction-activity-list .activity-item > span.whatsapp-activity-icon {
+    background: transparent;
+}
+
+.transaction-activity-list .activity-item > span.whatsapp-activity-icon img {
+    display: block;
+    width: 29px;
+    height: 29px;
 }
 
 .view-all-activity {
@@ -3883,8 +3917,8 @@ main {
 .package-rule-card > span {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     border-radius: 10px;
     color: #0758d8;
     background: #ffffff;
@@ -6370,77 +6404,117 @@ body.logout-modal-open {
     min-height: 100vh;
     color: #06154a;
     background:
-        radial-gradient(circle at 12% 18%, rgba(0, 116, 255, 0.06), transparent 24%),
-        radial-gradient(circle at 88% 34%, rgba(0, 116, 255, 0.08), transparent 24%),
+        radial-gradient(circle at 10% 18%, rgba(8, 105, 238, 0.045), transparent 23%),
+        radial-gradient(circle at 86% 28%, rgba(0, 116, 255, 0.05), transparent 25%),
         #ffffff;
 }
 
+.home-landing svg {
+    display: block;
+    width: 1em;
+    height: 1em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.home-landing svg path,
+.home-landing svg circle,
+.home-landing svg rect,
+.home-landing svg line,
+.home-landing svg polyline,
+.home-landing svg polygon {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: inherit;
+    stroke-linecap: inherit;
+    stroke-linejoin: inherit;
+}
+
+.home-landing svg.fill-icon {
+    fill: currentColor;
+}
+
+.home-landing svg.fill-icon path,
+.home-landing svg.fill-icon polygon {
+    fill: currentColor;
+    stroke: none;
+}
+
 .home-landing .site-header {
-    top: 6px;
-    width: min(calc(100% - 72px), 1840px);
-    min-height: 88px;
-    margin: 6px auto 0;
-    padding: 0 clamp(28px, 3vw, 60px);
+    top: 8px;
+    width: min(calc(100% - 72px), 1844px);
+    min-height: 106px;
+    margin: 8px auto 0;
+    padding: 0 clamp(40px, 3.2vw, 66px);
     border: 1px solid #e1e9f5;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.97);
-    box-shadow: 0 8px 28px rgba(10, 39, 91, 0.16);
+    box-shadow: 0 10px 30px rgba(10, 39, 91, 0.15);
 }
 
 .home-landing .site-logo img {
-    width: clamp(200px, 12.5vw, 232px);
+    width: clamp(238px, 14.4vw, 284px);
 }
 
 .home-landing .main-nav {
-    gap: clamp(34px, 4vw, 74px);
+    gap: clamp(38px, 4.2vw, 78px);
     min-width: 0;
 }
 
 .home-landing .main-nav a {
-    min-height: 88px;
+    min-height: 106px;
     color: #0b1d4f;
-    font-size: clamp(16px, 1.05vw, 21px);
+    font-size: clamp(17px, 1.05vw, 22px);
     font-weight: 700;
 }
 
 .home-landing .main-nav a.active::after {
-    bottom: 12px;
+    bottom: 16px;
     height: 4px;
     border-radius: 999px;
 }
 
 .home-landing .admin-button {
-    min-height: 52px;
-    padding: 0 26px;
+    min-height: 58px;
+    padding: 0 28px;
     border-radius: 12px;
-    font-size: clamp(15px, 0.95vw, 19px);
+    font-size: clamp(16px, 0.96vw, 20px);
     background: linear-gradient(135deg, #0b72ff, #004edc);
     box-shadow: 0 12px 24px rgba(0, 94, 238, 0.25);
 }
 
+.home-landing .admin-button span svg,
+.home-tracking-card .primary-button span svg {
+    width: 100%;
+    height: 100%;
+}
+
 .home-main {
-    width: min(calc(100% - 82px), 1800px);
-    margin: 20px auto 0;
+    width: min(calc(100% - 138px), 1744px);
+    margin: 18px auto 0;
 }
 
 .home-hero {
     display: grid;
-    grid-template-columns: minmax(480px, 0.88fr) minmax(620px, 1.05fr);
-    gap: clamp(24px, 4vw, 72px);
+    grid-template-columns: minmax(700px, 0.95fr) minmax(560px, 1fr);
+    gap: clamp(28px, 3.3vw, 64px);
     align-items: start;
 }
 
 .home-hero-copy {
     min-width: 0;
-    padding: 16px 0 0 clamp(0px, 2vw, 26px);
+    padding: 18px 0 0 clamp(0px, 1vw, 10px);
 }
 
 .home-hero-copy h1 {
-    max-width: 720px;
+    max-width: 840px;
     margin: 0;
     color: #06154a;
-    font-size: clamp(46px, 4.25vw, 74px);
-    line-height: 1.04;
+    font-size: clamp(48px, 3.35vw, 64px);
+    line-height: 1.02;
     letter-spacing: 0;
 }
 
@@ -6449,20 +6523,20 @@ body.logout-modal-open {
 }
 
 .home-hero-copy p {
-    max-width: 530px;
-    margin: 18px 0 0;
+    max-width: 505px;
+    margin: 20px 0 0;
     color: #213765;
-    font-size: clamp(17px, 1.15vw, 22px);
+    font-size: clamp(17px, 1.08vw, 22px);
     line-height: 1.5;
 }
 
 .home-hero-visual {
-    margin: 26px 0 0;
+    margin: 26px 0 0 -8px;
 }
 
 .home-hero-visual img {
     display: block;
-    width: min(100%, 790px);
+    width: min(100%, 780px);
     height: auto;
     filter: drop-shadow(0 18px 22px rgba(15, 78, 154, 0.1));
 }
@@ -6477,16 +6551,16 @@ body.logout-modal-open {
 .tracking-example,
 .services-panel,
 .home-info-strip {
-    border: 1px solid #d8e4f3;
+    border: 1px solid #dbe6f4;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: 0 10px 24px rgba(18, 75, 150, 0.08);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 10px 24px rgba(18, 75, 150, 0.075);
 }
 
 .home-tracking-card {
     display: grid;
     gap: 12px;
-    padding: 20px 28px 32px;
+    padding: 19px 30px 9px;
 }
 
 .home-tracking-card h2,
@@ -6498,7 +6572,7 @@ body.logout-modal-open {
 }
 
 .home-tracking-card h2 {
-    font-size: clamp(24px, 1.6vw, 31px);
+    font-size: clamp(25px, 1.45vw, 31px);
 }
 
 .home-input-wrap {
@@ -6508,7 +6582,7 @@ body.logout-modal-open {
 
 .home-input-wrap input {
     width: 100%;
-    min-height: 48px;
+    min-height: 49px;
     padding: 0 16px 0 58px;
     border: 1px solid #a9b9cf;
     border-radius: 8px;
@@ -6527,15 +6601,19 @@ body.logout-modal-open {
     position: absolute;
     top: 50%;
     left: 20px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
     color: #6d7da1;
-    font-size: 20px;
+    font-size: 22px;
     transform: translateY(-50%);
 }
 
 .home-tracking-card .primary-button {
-    min-height: 50px;
+    min-height: 49px;
     border-radius: 8px;
-    font-size: 17px;
+    font-size: clamp(16px, 0.95vw, 19px);
 }
 
 .home-tracking-card .whatsapp-button {
@@ -6543,12 +6621,20 @@ body.logout-modal-open {
     border-radius: 8px;
     color: #07883f;
     border-color: #0ca95c;
-    font-size: 17px;
+    font-size: clamp(16px, 0.95vw, 19px);
     background: #ffffff;
 }
 
+.tracking-help-text {
+    margin-top: -4px;
+    color: #3a4a73;
+    font-size: clamp(12px, 0.74vw, 15px);
+    line-height: 1.25;
+    text-align: center;
+}
+
 .tracking-example {
-    padding: 16px 20px 16px;
+    padding: 14px 20px 16px;
 }
 
 .tracking-example h2 {
@@ -6558,23 +6644,28 @@ body.logout-modal-open {
 
 .tracking-example-body {
     display: grid;
-    grid-template-columns: minmax(230px, 0.42fr) minmax(420px, 1fr);
-    gap: 24px;
+    grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+    gap: 20px;
     align-items: stretch;
+    min-width: 0;
+}
+
+.tracking-example-body > * {
+    min-width: 0;
 }
 
 .tracking-detail-list {
     display: grid;
-    gap: 11px;
+    gap: 10px;
     margin: 0;
-    padding: 6px 22px 6px 0;
+    padding: 6px 20px 4px 0;
     border-right: 1px solid #dde7f4;
 }
 
 .tracking-detail-list div {
     display: grid;
-    grid-template-columns: minmax(102px, 0.82fr) minmax(110px, 1fr);
-    gap: 12px;
+    grid-template-columns: minmax(106px, 0.8fr) minmax(118px, 1fr);
+    gap: 13px;
     align-items: baseline;
 }
 
@@ -6601,19 +6692,21 @@ body.logout-modal-open {
 .tracking-progress {
     position: relative;
     display: grid;
-    grid-template-columns: repeat(7, minmax(54px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
     align-content: start;
     min-width: 0;
+    max-width: 100%;
     padding: 8px 0 0;
+    overflow: hidden;
 }
 
 .tracking-progress::before {
     content: "";
     position: absolute;
     top: 29px;
-    left: 34px;
-    right: 34px;
+    left: 22px;
+    right: 22px;
     height: 2px;
     background: repeating-linear-gradient(90deg, #8dadde 0 7px, transparent 7px 13px);
 }
@@ -6624,6 +6717,7 @@ body.logout-modal-open {
     display: grid;
     justify-items: center;
     gap: 8px;
+    width: 100%;
     min-width: 0;
     text-align: center;
 }
@@ -6631,13 +6725,13 @@ body.logout-modal-open {
 .tracking-step span {
     display: grid;
     place-items: center;
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
     border: 1px solid #c4cedd;
     border-radius: 50%;
     color: #9aa8bb;
     background: #ffffff;
-    font-size: 19px;
+    font-size: 22px;
     box-shadow: 0 0 0 6px #ffffff;
 }
 
@@ -6649,9 +6743,13 @@ body.logout-modal-open {
 }
 
 .tracking-step strong {
+    display: block;
+    width: 100%;
+    min-width: 0;
     color: #16306d;
-    font-size: clamp(10px, 0.72vw, 13px);
+    font-size: clamp(9px, 0.62vw, 11px);
     line-height: 1.2;
+    overflow-wrap: anywhere;
 }
 
 .tracking-step.is-current strong {
@@ -6664,8 +6762,10 @@ body.logout-modal-open {
     grid-template-columns: 30px minmax(0, 1fr);
     gap: 16px;
     align-items: center;
-    margin: 18px 0 0;
-    padding: 18px 22px;
+    min-width: 0;
+    max-width: 100%;
+    margin: 17px 0 0;
+    padding: 16px 22px;
     border-radius: 9px;
     color: #0b2c80;
     background: #edf5ff;
@@ -6680,7 +6780,7 @@ body.logout-modal-open {
     height: 26px;
     border-radius: 50%;
     color: #0869ee;
-    font-size: 20px;
+    font-size: 23px;
 }
 
 .home-services {
@@ -6691,17 +6791,17 @@ body.logout-modal-open {
 }
 
 .services-panel {
-    padding: 14px 18px 18px;
+    padding: 13px 18px 16px;
 }
 
 .services-panel h2 {
-    font-size: clamp(20px, 1.3vw, 27px);
+    font-size: clamp(20px, 1.25vw, 27px);
 }
 
 .service-panel-toolbar {
     display: grid;
     grid-template-columns: minmax(260px, 0.48fr) minmax(260px, 1fr);
-    gap: 18px;
+    gap: 20px;
     align-items: center;
     margin: 8px 0 6px;
 }
@@ -6724,6 +6824,14 @@ body.logout-modal-open {
     font-size: clamp(14px, 0.95vw, 18px);
 }
 
+.service-badge span,
+.special-panel h2 span {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+}
+
 .service-panel-toolbar small {
     display: inline-flex;
     align-items: center;
@@ -6739,7 +6847,7 @@ body.logout-modal-open {
 .compact-service-grid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 16px;
+    gap: 18px;
 }
 
 .compact-service-card {
@@ -6747,7 +6855,7 @@ body.logout-modal-open {
     justify-items: center;
     align-content: center;
     gap: 10px;
-    min-height: 118px;
+    min-height: 128px;
     padding: 12px 10px;
     border: 1px solid #d8e4f3;
     border-radius: 10px;
@@ -6762,14 +6870,14 @@ body.logout-modal-open {
     width: 54px;
     height: 54px;
     color: #0869ee;
-    font-size: 42px;
+    font-size: 56px;
     line-height: 1;
 }
 
 .compact-service-card h3 {
     margin: 0;
     color: #06154a;
-    font-size: clamp(12px, 0.9vw, 17px);
+    font-size: clamp(12px, 0.88vw, 17px);
     line-height: 1.16;
 }
 
@@ -6796,15 +6904,15 @@ body.logout-modal-open {
 .special-service-grid .compact-service-card > span {
     width: 66px;
     height: 66px;
-    font-size: 48px;
+    font-size: 64px;
 }
 
 .home-info-strip {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.15fr) minmax(300px, 1.15fr) minmax(420px, 1.75fr);
+    grid-template-columns: minmax(330px, 1.08fr) minmax(245px, 0.9fr) minmax(270px, 1fr) minmax(360px, 1.42fr);
     gap: 0;
     margin: 10px auto 14px;
-    padding: 18px 22px;
+    padding: 18px 24px;
 }
 
 .home-info-item {
@@ -6813,12 +6921,14 @@ body.logout-modal-open {
     gap: 18px;
     align-items: center;
     min-width: 0;
-    padding: 0 26px;
+    padding: 0 20px;
     border-right: 1px solid #d0dbea;
 }
 
 .home-info-item:first-child {
     padding-left: 0;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 16px;
 }
 
 .home-info-item:last-child {
@@ -6844,6 +6954,20 @@ body.logout-modal-open {
     font-size: 18px;
 }
 
+.home-info-item:first-child .home-info-icon.whatsapp-logo-icon {
+    width: 66px;
+    height: 66px;
+    background: transparent;
+    box-shadow: none;
+    justify-self: center;
+}
+
+.home-info-icon.whatsapp-logo-icon img {
+    display: block;
+    width: 62px;
+    height: 62px;
+}
+
 .home-info-item small {
     display: block;
     color: #334b83;
@@ -6854,7 +6978,7 @@ body.logout-modal-open {
     display: block;
     margin-top: 2px;
     color: #06154a;
-    font-size: clamp(17px, 1.15vw, 24px);
+    font-size: clamp(17px, 1.12vw, 24px);
     line-height: 1.1;
 }
 
@@ -6882,6 +7006,10 @@ body.logout-modal-open {
     color: #0b934f;
 }
 
+.home-info-item:first-child p {
+    white-space: nowrap;
+}
+
 .home-info-item p {
     margin: 7px 0 0;
     color: #06154a;
@@ -6892,7 +7020,7 @@ body.logout-modal-open {
 .home-footer {
     display: grid;
     place-items: center;
-    min-height: 46px;
+    min-height: 44px;
     color: #ffffff;
     background: linear-gradient(90deg, #0058d2, #0048ba);
     font-size: 17px;
@@ -6902,7 +7030,56 @@ body.logout-modal-open {
     font-size: inherit;
 }
 
-@media (max-width: 1380px) {
+@media (max-width: 1380px) and (min-width: 1181px) {
+    .home-main {
+        width: min(calc(100% - 72px), 1744px);
+    }
+
+    .home-hero {
+        grid-template-columns: minmax(520px, 0.86fr) minmax(540px, 1fr);
+        gap: 32px;
+    }
+
+    .home-hero-copy h1 {
+        font-size: clamp(44px, 3.5vw, 56px);
+    }
+
+    .tracking-example-body {
+        grid-template-columns: minmax(190px, 0.35fr) minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .tracking-detail-list {
+        padding-right: 16px;
+    }
+
+    .tracking-detail-list div {
+        grid-template-columns: minmax(92px, 0.75fr) minmax(96px, 1fr);
+        gap: 8px;
+    }
+
+    .tracking-progress {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .tracking-progress::before {
+        left: 18px;
+        right: 18px;
+    }
+
+    .tracking-step span {
+        width: 34px;
+        height: 34px;
+        font-size: 18px;
+    }
+
+    .tracking-step strong {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 1180px) {
     .home-hero {
         grid-template-columns: 1fr;
     }
@@ -6922,21 +7099,8 @@ body.logout-modal-open {
         width: 100%;
     }
 
-    .home-services,
-    .home-info-strip {
+    .home-services {
         grid-template-columns: 1fr;
-    }
-
-    .home-info-item,
-    .home-info-item:first-child,
-    .home-info-item:last-child {
-        padding: 18px 0;
-        border-right: 0;
-        border-bottom: 1px solid #d0dbea;
-    }
-
-    .home-info-item:last-child {
-        border-bottom: 0;
     }
 }
 
@@ -6993,6 +7157,22 @@ body.logout-modal-open {
 
     .compact-service-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .home-info-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .home-info-item,
+    .home-info-item:first-child,
+    .home-info-item:last-child {
+        padding: 18px 0;
+        border-right: 0;
+        border-bottom: 1px solid #d0dbea;
+    }
+
+    .home-info-item:last-child {
+        border-bottom: 0;
     }
 }
 
@@ -7092,14 +7272,33 @@ body.logout-modal-open {
     }
 
     .home-info-item {
-        grid-template-columns: 56px minmax(0, 1fr);
+        grid-template-columns: 60px minmax(0, 1fr);
         gap: 14px;
+    }
+
+    .home-info-item:first-child {
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 12px;
     }
 
     .home-info-icon {
         width: 56px;
         height: 56px;
         font-size: 28px;
+    }
+
+    .home-info-icon.whatsapp-logo-icon {
+        width: 58px;
+        height: 58px;
+    }
+
+    .home-info-icon.whatsapp-logo-icon img {
+        width: 56px;
+        height: 56px;
+    }
+
+    .home-info-item:first-child p {
+        white-space: normal;
     }
 }
 
@@ -7531,6 +7730,18 @@ body.logout-modal-open {
 .tracking-contact-icon.green {
     background: linear-gradient(135deg, #18bd69, #07883f);
     font-size: 17px;
+}
+
+.tracking-contact-icon.whatsapp-logo-icon {
+    background: transparent;
+    box-shadow: none;
+}
+
+.tracking-contact-icon.whatsapp-logo-icon img {
+    display: block;
+    width: 62px;
+    height: 62px;
+    filter: drop-shadow(0 8px 11px rgba(11, 147, 79, 0.14));
 }
 
 .tracking-contact-item small {
@@ -8062,6 +8273,17 @@ body.logout-modal-open {
     background: linear-gradient(135deg, #19bf6c, #078b41);
 }
 
+.services-contact-item:first-child .services-contact-icon {
+    background: transparent;
+}
+
+.services-contact-icon img {
+    display: block;
+    width: 66px;
+    height: 66px;
+    filter: drop-shadow(0 8px 11px rgba(11, 147, 79, 0.14));
+}
+
 .services-contact-icon svg {
     width: 58%;
     height: 58%;
@@ -8527,6 +8749,19 @@ body.logout-modal-open {
     background: linear-gradient(135deg, #19bf6c, #078b41);
 }
 
+.contact-admin-item:nth-child(2) .contact-admin-icon,
+.contact-info-item:first-child .contact-info-icon.green {
+    background: transparent;
+}
+
+.contact-admin-icon img,
+.contact-info-icon img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 8px 11px rgba(11, 147, 79, 0.14));
+}
+
 .contact-admin-icon svg,
 .contact-info-icon svg,
 .contact-whatsapp-logo svg,
@@ -8588,8 +8823,15 @@ body.logout-modal-open {
     height: 112px;
     border-radius: 50%;
     color: #ffffff;
-    background: linear-gradient(135deg, #19bf6c, #078b41);
-    box-shadow: 0 0 0 9px #ffffff, 0 8px 24px rgba(7, 139, 65, 0.24);
+    background: transparent;
+    box-shadow: 0 0 0 9px #ffffff;
+}
+
+.contact-whatsapp-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 12px 20px rgba(7, 139, 65, 0.22));
 }
 
 .contact-message-row blockquote {
@@ -8640,6 +8882,12 @@ body.logout-modal-open {
 }
 
 .contact-whatsapp-button svg {
+    width: 100%;
+    height: 100%;
+}
+
+.contact-whatsapp-button img {
+    display: block;
     width: 100%;
     height: 100%;
 }
@@ -9080,6 +9328,36 @@ body.logout-modal-open {
 .admin-login-redesign .admin-login-form {
     display: grid;
     gap: 12px;
+}
+
+.admin-login-redesign .admin-login-alert {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 11px 14px;
+    border: 1px solid #ffc8c8;
+    border-radius: 8px;
+    color: #8f1620;
+    background: #fff3f3;
+}
+
+.admin-login-redesign .admin-login-alert span {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: #d72234;
+    font-weight: 900;
+}
+
+.admin-login-redesign .admin-login-alert p {
+    margin: 0;
+    font-size: clamp(13px, 0.84vw, 14px);
+    font-weight: 800;
+    line-height: 1.35;
 }
 
 .admin-login-redesign .admin-field {

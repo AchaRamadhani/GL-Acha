@@ -1,5 +1,8 @@
 <?php
 $baseUrlSafe = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
+$loginErrorSafe = htmlspecialchars($loginError ?? '', ENT_QUOTES, 'UTF-8');
+$oldUsernameSafe = htmlspecialchars($oldUsername ?? '', ENT_QUOTES, 'UTF-8');
 ob_start();
 ?>
 <div class="admin-login-page admin-login-redesign">
@@ -28,7 +31,16 @@ ob_start();
             <h1 id="adminLoginTitle">Login Admin Ghava Laundry</h1>
             <p>Silakan login untuk mengakses dashboard admin, mengelola data cucian, dan memantau transaksi.</p>
 
-            <form class="admin-login-form" action="<?= $baseUrlSafe ?>/admin" method="get">
+            <form class="admin-login-form" action="<?= $baseUrlSafe ?>/admin/login" method="post">
+                <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+
+                <?php if ($loginErrorSafe !== ''): ?>
+                    <div class="admin-login-alert" role="alert">
+                        <span aria-hidden="true">!</span>
+                        <p><?= $loginErrorSafe ?></p>
+                    </div>
+                <?php endif; ?>
+
                 <label class="admin-field" for="adminUsername">
                     <span class="admin-field-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" focusable="false">
@@ -36,7 +48,7 @@ ob_start();
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                     </span>
-                    <input id="adminUsername" name="username" type="text" placeholder="Username" autocomplete="username" required>
+                    <input id="adminUsername" name="username" type="text" placeholder="Username" autocomplete="username" value="<?= $oldUsernameSafe ?>" required>
                 </label>
 
                 <label class="admin-field" for="adminPassword">

@@ -1,37 +1,65 @@
 <?php ob_start(); ?>
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
+
+if (!function_exists('homeIcon')) {
+    function homeIcon(string $name): string
+    {
+        $icons = [
+            'basket' => '<svg viewBox="0 0 24 24"><path d="M5 10h14l-1.5 9h-11L5 10Z"/><path d="M8 10 12 4l4 6"/><path d="M9 14v2"/><path d="M12 14v2"/><path d="M15 14v2"/></svg>',
+            'check' => '<svg viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"/></svg>',
+            'clock' => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+            'dryer' => '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M7 9h6"/><path d="M7 13c2-2 4 2 6 0s4-2 6 0"/></svg>',
+            'hanger' => '<svg viewBox="0 0 24 24"><path d="M12 10V9a2.5 2.5 0 1 0-2.5-2.5"/><path d="m4 19 8-6 8 6Z"/></svg>',
+            'info' => '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>',
+            'iron' => '<svg viewBox="0 0 24 24"><path d="M6 15h11c2 0 3 1 3 3H4c0-1.7.8-3 2-3Z"/><path d="M7 15V9h6c2.8 0 5.2 2 5.8 4.7"/><path d="M9 12h4"/></svg>',
+            'lock' => '<svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2"/></svg>',
+            'map' => '<svg viewBox="0 0 24 24"><path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+            'receipt' => '<svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7Z"/><path d="M15 3v5h4"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>',
+            'search' => '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4.5-4.5"/></svg>',
+            'shield' => '<svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6Z"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>',
+            'shirt' => '<svg viewBox="0 0 24 24"><path d="M9 4h6l2 2 4 2-2 5-3-1v8H8v-8l-3 1-2-5 4-2Z"/><path d="M9 4c.7 1.4 1.7 2 3 2s2.3-.6 3-2"/></svg>',
+            'star' => '<svg class="fill-icon" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg>',
+            'stopwatch' => '<svg viewBox="0 0 24 24"><path d="M10 2h4"/><path d="M12 8v5l-3 3"/><circle cx="12" cy="13" r="8"/><path d="m17 5 2 2"/></svg>',
+            'towels' => '<svg viewBox="0 0 24 24"><path d="M6 7h10a3 3 0 0 1 0 6H6a3 3 0 0 0 0 6h12"/><path d="M6 7a3 3 0 0 0 0 6h10"/><path d="M6 13a3 3 0 0 0 0 6"/></svg>',
+            'washer' => '<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h.01"/><path d="M11 7h5"/><circle cx="12" cy="14" r="4"/><path d="M9.5 14.5c1.3-1.1 3.7 1.1 5 0"/></svg>',
+        ];
+
+        return $icons[$name] ?? '';
+    }
+}
 
 $trackingSteps = [
-    ['icon' => '&#10003;', 'label' => 'Antrean', 'state' => 'done'],
-    ['icon' => '&#10003;', 'label' => 'Diproses', 'state' => 'done'],
-    ['icon' => '&#128703;', 'label' => 'Dicuci', 'state' => 'current'],
-    ['icon' => '&#9832;', 'label' => 'Dikeringkan', 'state' => ''],
-    ['icon' => '&#128085;', 'label' => 'Disetrika', 'state' => ''],
-    ['icon' => '&#9745;', 'label' => 'Selesai', 'state' => ''],
-    ['icon' => '&#128722;', 'label' => 'Diambil', 'state' => ''],
+    ['icon' => homeIcon('check'), 'label' => 'Antrean', 'state' => 'done'],
+    ['icon' => homeIcon('check'), 'label' => 'Diproses', 'state' => 'done'],
+    ['icon' => homeIcon('washer'), 'label' => 'Dicuci', 'state' => 'current'],
+    ['icon' => homeIcon('dryer'), 'label' => 'Dikeringkan', 'state' => ''],
+    ['icon' => homeIcon('iron'), 'label' => 'Disetrika', 'state' => ''],
+    ['icon' => homeIcon('receipt'), 'label' => 'Selesai', 'state' => ''],
+    ['icon' => homeIcon('hanger'), 'label' => 'Diambil', 'state' => ''],
 ];
 
 $kiloanServices = [
-    ['icon' => '&#128703;', 'title' => 'Cuci Kering'],
-    ['icon' => '&#128230;', 'title' => 'Cuci Lipat'],
-    ['icon' => '&#128085;', 'title' => 'Cuci Setrika Lipat'],
-    ['icon' => '&#128451;', 'title' => 'Setrika Saja'],
-    ['icon' => '&#9832;', 'title' => 'Pengering & Lipat'],
-    ['icon' => '&#128118;', 'title' => 'Baju Bayi'],
+    ['icon' => homeIcon('washer'), 'title' => 'Cuci Kering'],
+    ['icon' => homeIcon('towels'), 'title' => 'Cuci Lipat'],
+    ['icon' => homeIcon('shirt'), 'title' => 'Cuci Setrika Lipat'],
+    ['icon' => homeIcon('iron'), 'title' => 'Setrika Saja'],
+    ['icon' => homeIcon('dryer'), 'title' => 'Pengering & Lipat'],
+    ['icon' => homeIcon('shirt'), 'title' => 'Baju Bayi'],
 ];
 
 $specialServices = [
-    ['icon' => '&#128090;', 'title' => 'Satuan'],
-    ['icon' => '&#9201;', 'title' => 'Express'],
-    ['icon' => '&#128737;', 'title' => 'Treatment'],
+    ['icon' => homeIcon('hanger'), 'title' => 'Satuan'],
+    ['icon' => homeIcon('stopwatch'), 'title' => 'Express'],
+    ['icon' => homeIcon('shield'), 'title' => 'Treatment'],
 ];
 
 $contactItems = [
-    ['icon' => 'WA', 'label' => 'WhatsApp', 'title' => '081242910340', 'text' => 'Terhubung langsung ke admin.'],
-    ['icon' => '&#9719;', 'label' => 'Jam Operasional', 'title' => '07.00 - 21.00 WITA', 'text' => 'Setiap hari termasuk hari libur.'],
-    ['icon' => '&#9679;', 'label' => 'Status Operasional Hari Ini', 'title' => 'Buka', 'text' => 'Status dapat berubah menjadi istirahat, tutup, atau libur.'],
-    ['icon' => '&#9906;', 'label' => 'Alamat', 'title' => 'Jl. Poros Hartaco Indah', 'text' => 'Kelurahan Sudiang Raya, Biringkanaya, Kota Makassar, Sulawesi Selatan 90242.'],
+    ['icon' => $whatsappLogo, 'iconClass' => 'whatsapp-logo-icon', 'label' => 'WhatsApp', 'title' => '081242910340', 'text' => 'Pesan akan dikirim secara umum'],
+    ['icon' => homeIcon('clock'), 'label' => 'Jam Operasional', 'title' => '07.00 - 21.00 WITA', 'text' => 'Setiap Hari (Termasuk Hari Libur)'],
+    ['icon' => homeIcon('check'), 'label' => 'Status Operasional Hari Ini', 'title' => 'Buka', 'text' => 'Status dapat Ishoma, Tutup, atau Libur'],
+    ['icon' => homeIcon('map'), 'label' => 'Alamat', 'title' => 'Jl. Poros Hartaco Indah, Kelurahan Sudiang Raya,', 'text' => 'Kecamatan Biringkanaya, Kota Makassar, Sulawesi Selatan 90242'],
 ];
 ?>
 <div class="site-shell home-landing">
@@ -48,7 +76,7 @@ $contactItems = [
         </nav>
 
         <a class="admin-button" href="<?= $safeBaseUrl ?>/admin/login">
-            <span aria-hidden="true">&#128274;</span>
+            <span aria-hidden="true"><?= homeIcon('lock') ?></span>
             Login Admin
         </a>
     </header>
@@ -71,17 +99,18 @@ $contactItems = [
                 <form class="home-tracking-card" id="trackingForm" action="#tracking">
                     <h2>Cek Status Cucian</h2>
                     <label class="home-input-wrap" for="nomorNota">
-                        <span aria-hidden="true">&#128196;</span>
+                        <span aria-hidden="true"><?= homeIcon('receipt') ?></span>
                         <input id="nomorNota" name="nota" type="text" inputmode="text" placeholder="Masukkan No. Nota" aria-label="Nomor nota">
                     </label>
                     <button class="primary-button" type="submit">
-                        <span aria-hidden="true">&#128269;</span>
+                        <span aria-hidden="true"><?= homeIcon('search') ?></span>
                         Cek Status
                     </button>
                     <a class="whatsapp-button" href="https://wa.me/6281242910340">
-                        <span aria-hidden="true">WA</span>
+                        <span class="whatsapp-button-icon" aria-hidden="true"><?= $whatsappLogo ?></span>
                         Hubungi Admin WhatsApp
                     </a>
+                    <small class="tracking-help-text">Pesan umum, belum terkait nomor nota</small>
                 </form>
 
                 <section class="tracking-example" aria-labelledby="trackingExampleTitle">
@@ -122,7 +151,7 @@ $contactItems = [
                                 </article>
                             <?php endforeach; ?>
                             <p class="tracking-status-note">
-                                <span aria-hidden="true">&#9432;</span>
+                                <span aria-hidden="true"><?= homeIcon('info') ?></span>
                                 Cucian Anda sedang dicuci. Terima kasih telah menggunakan layanan Ghava Laundry.
                             </p>
                         </div>
@@ -136,7 +165,7 @@ $contactItems = [
                 <h2>Layanan Ghava Laundry</h2>
                 <div class="service-panel-toolbar">
                     <span class="service-badge">
-                        <span aria-hidden="true">&#128092;</span>
+                        <span aria-hidden="true"><?= homeIcon('basket') ?></span>
                         Kategori Kiloan (Minimal 3 kg)
                     </span>
                     <small>Perhitungan kiloan minimal 3 kg berat cucian.</small>
@@ -153,7 +182,7 @@ $contactItems = [
 
             <div class="services-panel special-panel">
                 <h2>
-                    <span aria-hidden="true">&#9733;</span>
+                    <span aria-hidden="true"><?= homeIcon('star') ?></span>
                     Layanan Khusus
                 </h2>
                 <div class="compact-service-grid special-service-grid">
@@ -170,7 +199,7 @@ $contactItems = [
         <section class="home-info-strip" id="kontak" aria-label="Informasi kontak dan operasional">
             <?php foreach ($contactItems as $item): ?>
                 <article class="home-info-item">
-                    <span class="home-info-icon" aria-hidden="true"><?= $item['icon'] ?></span>
+                    <span class="home-info-icon <?= htmlspecialchars($item['iconClass'] ?? '', ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"><?= $item['icon'] ?></span>
                     <div>
                         <small><?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8') ?></small>
                         <strong class="<?= $item['title'] === 'Buka' ? 'open-status' : '' ?>"><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></strong>

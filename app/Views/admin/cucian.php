@@ -1,5 +1,6 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -66,7 +67,7 @@ ob_start();
             <?php endforeach; ?>
         </nav>
 
-        <a class="dashboard-logout" href="<?= $safeBaseUrl ?>/admin/login">
+        <a class="dashboard-logout" href="<?= $safeBaseUrl ?>/admin/logout">
             <span aria-hidden="true">&#8617;</span>
             Logout
         </a>
@@ -188,7 +189,7 @@ ob_start();
                                                 <button class="view" type="button" aria-label="Lihat detail">&#128065;</button>
                                                 <button class="edit" type="button" aria-label="Ubah data">&#9998;</button>
                                                 <button class="delete" type="button" aria-label="Hapus data">&#128465;</button>
-                                                <button class="wa" type="button" aria-label="Hubungi WhatsApp">WA</button>
+                                                <button class="wa" type="button" aria-label="Hubungi WhatsApp"><?= $whatsappLogo ?></button>
                                             </div>
                                         </td>
                                     </tr>

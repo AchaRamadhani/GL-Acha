@@ -1,5 +1,6 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -43,10 +44,10 @@ $statusSummary = [
 
 $noteActivities = [
     ['icon' => '&#128065;', 'tone' => 'blue', 'title' => 'Nota dilihat', 'detail' => 'INV-250521-001 - Budi Santoso', 'time' => '5 mnt lalu'],
-    ['icon' => 'WA', 'tone' => 'green', 'title' => 'Nota dikirim ulang via WhatsApp', 'detail' => 'INV-250521-002 - Siti Aisyah', 'time' => '12 mnt lalu'],
+    ['icon' => $whatsappLogo, 'tone' => 'green whatsapp-activity-icon', 'title' => 'Nota dikirim ulang via WhatsApp', 'detail' => 'INV-250521-002 - Siti Aisyah', 'time' => '12 mnt lalu'],
     ['icon' => '&#128424;', 'tone' => 'blue', 'title' => 'Nota dicetak', 'detail' => 'INV-250520-015 - Andi Wijaya', 'time' => '25 mnt lalu'],
     ['icon' => '&#128065;', 'tone' => 'blue', 'title' => 'Nota dilihat', 'detail' => 'INV-250520-014 - Rina Marlina', 'time' => '32 mnt lalu'],
-    ['icon' => 'WA', 'tone' => 'green', 'title' => 'Nota dikirim ulang via WhatsApp', 'detail' => 'INV-250520-013 - Dewi Lestari', 'time' => '45 mnt lalu'],
+    ['icon' => $whatsappLogo, 'tone' => 'green whatsapp-activity-icon', 'title' => 'Nota dikirim ulang via WhatsApp', 'detail' => 'INV-250520-013 - Dewi Lestari', 'time' => '45 mnt lalu'],
 ];
 
 ob_start();
@@ -66,7 +67,7 @@ ob_start();
             <?php endforeach; ?>
         </nav>
 
-        <a class="dashboard-logout" href="<?= $safeBaseUrl ?>/admin/login">
+        <a class="dashboard-logout" href="<?= $safeBaseUrl ?>/admin/logout">
             <span aria-hidden="true">&#8617;</span>
             Logout
         </a>
@@ -180,7 +181,7 @@ ob_start();
                                         <td>
                                             <div class="transaction-actions" aria-label="Aksi transaksi">
                                                 <button class="view" type="button" aria-label="Lihat nota">&#128065;</button>
-                                                <button class="wa" type="button" aria-label="Kirim nota WhatsApp">WA</button>
+                                                <button class="wa" type="button" aria-label="Kirim nota WhatsApp"><?= $whatsappLogo ?></button>
                                             </div>
                                         </td>
                                     </tr>

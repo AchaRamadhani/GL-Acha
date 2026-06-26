@@ -3,9 +3,10 @@
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
 $whatsappDisplay = '0812-4291-0340';
 $whatsappUrl = 'https://wa.me/6281242910340';
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
 
 $contactIcons = [
-    'whatsapp' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="24"></circle><path d="M21 47l2-8a17 17 0 1 1 7 5l-9 3z"></path><path d="M25 25c1 8 7 14 15 16l4-5-5-3-3 2c-3-2-5-4-7-7l2-3-3-5-3 5z"></path></svg>',
+    'whatsapp' => $whatsappLogo,
     'user' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="24" r="11"></circle><path d="M14 55c3-12 11-18 18-18s15 6 18 18"></path></svg>',
     'chat' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M13 18h38v27H26l-12 8V18z"></path><line x1="22" y1="29" x2="43" y2="29"></line><line x1="22" y1="37" x2="36" y2="37"></line></svg>',
     'clock' => '<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="23"></circle><path d="M32 17v16l11 7"></path></svg>',

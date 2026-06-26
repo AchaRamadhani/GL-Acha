@@ -14,3 +14,5 @@ $router->get('/admin/pelanggan', [HomeController::class, 'adminPelanggan']);
 $router->get('/admin/paket-laundry', [HomeController::class, 'adminPaketLaundry']);
 $router->get('/admin/pengaturan', [HomeController::class, 'adminPengaturan']);
 $router->get('/admin/login', [HomeController::class, 'adminLogin']);
+$router->post('/admin/login', [HomeController::class, 'adminAuthenticate']);
+$router->get('/admin/logout', [HomeController::class, 'adminLogout']);

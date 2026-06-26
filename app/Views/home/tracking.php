@@ -1,6 +1,7 @@
 <?php ob_start(); ?>
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
 
 $trackingSteps = [
     ['icon' => '&#10003;', 'label' => 'Antrean', 'state' => 'done'],
@@ -32,7 +33,7 @@ $historyItems = [
 ];
 
 $contactItems = [
-    ['icon' => 'WA', 'label' => 'Hubungi Kami via WhatsApp', 'title' => '081242910340', 'text' => 'Fast response selama jam operasional', 'tone' => 'green'],
+    ['icon' => $whatsappLogo, 'label' => 'Hubungi Kami via WhatsApp', 'title' => '081242910340', 'text' => 'Fast response selama jam operasional', 'tone' => 'green whatsapp-logo-icon'],
     ['icon' => '&#9719;', 'label' => 'Jam Operasional', 'title' => '07.00 - 21.00 WITA', 'text' => 'Setiap Hari (Termasuk Hari Libur)', 'tone' => 'blue'],
     ['icon' => '&#9872;', 'label' => 'Status Operasional Hari Ini', 'title' => 'Buka', 'text' => 'Kami siap melayani Anda hari ini', 'tone' => 'green'],
     ['icon' => '&#9906;', 'label' => 'Alamat Kami', 'title' => 'Jl. Poros Hartaco Indah, Kelurahan Sudiang Raya, Kecamatan Biringkanaya, Kota Makassar, Sulawesi Selatan 90242', 'text' => '', 'tone' => 'blue'],
@@ -78,7 +79,7 @@ $contactItems = [
                     Cek Status
                 </button>
                 <a class="whatsapp-button" href="https://wa.me/6281242910340">
-                    <span aria-hidden="true">WA</span>
+                    <span class="whatsapp-button-icon" aria-hidden="true"><?= $whatsappLogo ?></span>
                     Hubungi Admin WhatsApp
                 </a>
             </form>

@@ -11,8 +11,14 @@ class Router
         $this->routes['GET'][$this->normalizePath($path)] = $handler;
     }
 
+    public function post(string $path, array $handler): void
+    {
+        $this->routes['POST'][$this->normalizePath($path)] = $handler;
+    }
+
     public function dispatch(string $method, string $uri): void
     {
+        $method = strtoupper($method);
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
         $path = $this->pathWithoutBase($path);
         $handler = $this->routes[$method][$path] ?? null;

@@ -55,7 +55,7 @@ ob_start();
             <?php endforeach; ?>
         </nav>
 
-        <a class="dashboard-logout" href="<?= $safeBaseUrl ?>/admin/login">
+        <a class="dashboard-logout" href="<?= $safeBaseUrl ?>/admin/logout">
             <span aria-hidden="true">&#8617;</span>
             Logout
         </a>
