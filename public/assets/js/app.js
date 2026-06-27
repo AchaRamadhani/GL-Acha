@@ -1,20 +1,129 @@
+const homeLanding = document.querySelector('.home-landing');
+const homeHeader = document.querySelector('.home-landing .site-header');
+const homeNav = document.querySelector('[data-home-nav]');
+const homeNavLinks = homeNav ? Array.from(homeNav.querySelectorAll('a[href^="#"]')) : [];
+const homeNavigationEntry = window.performance?.getEntriesByType?.('navigation')?.[0];
+const isHomeReload = Boolean(
+    homeLanding && (
+        homeNavigationEntry?.type === 'reload'
+        || window.performance?.navigation?.type === 1
+    )
+);
+
+if (homeLanding && 'scrollRestoration' in window.history) {
+    window.history.scrollRestoration = 'manual';
+}
+
+const syncHomeHeaderHeight = () => {
+    if (!homeLanding || !homeHeader) {
+        return;
+    }
+
+    homeLanding.style.setProperty('--home-header-height', `${Math.ceil(homeHeader.getBoundingClientRect().height)}px`);
+};
+
+syncHomeHeaderHeight();
+window.addEventListener('load', syncHomeHeaderHeight);
+window.addEventListener('resize', syncHomeHeaderHeight);
+
+const setHomeActiveLink = (hash) => {
+    if (!homeNavLinks.length) {
+        return;
+    }
+
+    const hasMatchingLink = homeNavLinks.some((link) => link.getAttribute('href') === hash);
+
+    if (!hasMatchingLink) {
+        return;
+    }
+
+    homeNavLinks.forEach((link) => {
+        link.classList.toggle('active', link.getAttribute('href') === hash);
+    });
+};
+
+const resetHomeToTop = () => {
+    if (!homeLanding) {
+        return;
+    }
+
+    syncHomeHeaderHeight();
+    setHomeActiveLink('#beranda');
+
+    if (window.location.hash && window.history?.replaceState) {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+
+    window.scrollTo(0, 0);
+};
+
+const scrollToHomeHash = (hash, updateHistory = true) => {
+    if (!hash || !hash.startsWith('#')) {
+        return false;
+    }
+
+    const target = document.getElementById(hash.slice(1));
+
+    if (!target) {
+        return false;
+    }
+
+    syncHomeHeaderHeight();
+    const headerOffset = (homeHeader?.offsetHeight || 0) + 18;
+    const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - headerOffset);
+
+    setHomeActiveLink(hash);
+    window.scrollTo({ top, behavior: 'smooth' });
+
+    if (updateHistory && window.history?.pushState) {
+        window.history.pushState(null, '', hash);
+    }
+
+    return true;
+};
+
+const homeHashLinks = document.querySelectorAll('.home-landing a[href^="#"]');
+
+if (homeHashLinks.length) {
+    homeHashLinks.forEach((link) => {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+            scrollToHomeHash(link.getAttribute('href'));
+        });
+    });
+
+    if (isHomeReload) {
+        resetHomeToTop();
+        window.addEventListener('load', () => {
+            window.requestAnimationFrame(resetHomeToTop);
+        });
+        window.addEventListener('pageshow', resetHomeToTop);
+    } else if (window.location.hash) {
+        window.requestAnimationFrame(() => {
+            scrollToHomeHash(window.location.hash, false);
+        });
+    }
+}
+
+window.addEventListener('hashchange', () => {
+    setHomeActiveLink(window.location.hash || '#beranda');
+});
+
 const trackingForm = document.querySelector('#trackingForm');
 const nomorNotaInput = document.querySelector('#nomorNota');
 
 if (trackingForm && nomorNotaInput) {
     trackingForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-
         const nomorNota = nomorNotaInput.value.trim();
 
         if (!nomorNota) {
+            event.preventDefault();
             nomorNotaInput.focus();
             nomorNotaInput.setAttribute('aria-invalid', 'true');
             return;
         }
 
         nomorNotaInput.removeAttribute('aria-invalid');
-        document.querySelector('#tracking')?.scrollIntoView({ behavior: 'smooth' });
     });
 }
 
@@ -41,6 +150,76 @@ if (dashboardMenuToggle && dashboardSidebar) {
         link.addEventListener('click', () => {
             document.body.classList.remove('dashboard-sidebar-open');
         });
+    });
+}
+
+const laundryModalOpenButton = document.querySelector('[data-laundry-modal-open]');
+const laundryModal = document.querySelector('[data-laundry-modal]');
+
+if (laundryModalOpenButton && laundryModal) {
+    const laundryForm = laundryModal.querySelector('[data-laundry-form]');
+    const laundryCloseButtons = laundryModal.querySelectorAll('[data-laundry-modal-close]');
+    const laundryResetButton = laundryModal.querySelector('[data-laundry-form-reset]');
+    const laundryDateInputs = laundryModal.querySelectorAll('[data-laundry-date-input]');
+    const firstLaundryField = laundryModal.querySelector('#laundryCustomerName');
+    let previousLaundryFocus = null;
+
+    const closeLaundryModal = () => {
+        laundryModal.hidden = true;
+        document.body.classList.remove('laundry-modal-open');
+
+        if (previousLaundryFocus) {
+            previousLaundryFocus.focus();
+        }
+    };
+
+    const openLaundryModal = () => {
+        previousLaundryFocus = document.activeElement;
+        laundryModal.hidden = false;
+        document.body.classList.add('laundry-modal-open');
+        window.requestAnimationFrame(() => firstLaundryField?.focus());
+    };
+
+    laundryModalOpenButton.addEventListener('click', openLaundryModal);
+
+    laundryCloseButtons.forEach((button) => {
+        button.addEventListener('click', closeLaundryModal);
+    });
+
+    laundryResetButton?.addEventListener('click', () => {
+        laundryForm?.reset();
+        laundryDateInputs.forEach((input) => {
+            input.type = 'text';
+        });
+        firstLaundryField?.focus();
+    });
+
+    laundryDateInputs.forEach((input) => {
+        input.addEventListener('focus', () => {
+            input.type = 'date';
+        });
+
+        input.addEventListener('blur', () => {
+            if (!input.value) {
+                input.type = 'text';
+            }
+        });
+    });
+
+    laundryForm?.addEventListener('submit', () => {
+        closeLaundryModal();
+    });
+
+    laundryModal.addEventListener('click', (event) => {
+        if (event.target === laundryModal) {
+            closeLaundryModal();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !laundryModal.hidden) {
+            closeLaundryModal();
+        }
     });
 }
 
@@ -294,7 +473,10 @@ if (settingsForm) {
     });
 
     if (logoutConfirmToggle) {
-        logoutConfirmToggle.checked = readStorage('ghavaLogoutConfirm') !== 'off';
+        const storedLogoutPreference = readStorage('ghavaLogoutConfirm');
+        if (storedLogoutPreference !== null) {
+            logoutConfirmToggle.checked = storedLogoutPreference !== 'off';
+        }
         logoutConfirmToggle.addEventListener('change', () => {
             writeStorage('ghavaLogoutConfirm', logoutConfirmToggle.checked ? 'on' : 'off');
             showSettingsToast(logoutConfirmToggle.checked ? 'Konfirmasi logout diaktifkan.' : 'Konfirmasi logout dinonaktifkan.');
@@ -302,12 +484,11 @@ if (settingsForm) {
     }
 
     settingsForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-
         const newPassword = settingsForm.querySelector('#settingNewPassword');
         const confirmPassword = settingsForm.querySelector('#settingConfirmPassword');
 
         if (newPassword?.value && confirmPassword?.value && newPassword.value !== confirmPassword.value) {
+            event.preventDefault();
             confirmPassword.setAttribute('aria-invalid', 'true');
             confirmPassword.focus();
             showSettingsToast('Konfirmasi password belum sama.');
@@ -316,14 +497,7 @@ if (settingsForm) {
         }
 
         confirmPassword?.removeAttribute('aria-invalid');
-        settingsFields.forEach((field) => field.classList.remove('is-active'));
-
-        if (settingsFeedback) {
-            settingsFeedback.textContent = 'Perubahan pengaturan berhasil disimpan.';
-            settingsFeedback.classList.remove('is-dirty');
-        }
-
-        showSettingsToast('Pengaturan berhasil disimpan.');
+        setFeedback('Menyimpan perubahan ke database...');
     });
 
     updateCounter();

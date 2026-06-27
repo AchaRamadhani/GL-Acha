@@ -2,6 +2,8 @@
 
 namespace App\Core;
 
+use App\Models\LaundryRepository;
+
 class Auth
 {
     private const ADMIN_SESSION_KEY = 'gl_acha_admin';
@@ -41,21 +43,42 @@ class Auth
     {
         self::start();
 
-        $config = require __DIR__ . '/../../config/auth.php';
-        $admin = $config['admin'] ?? [];
-        $validUsername = isset($admin['username']) && hash_equals((string) $admin['username'], $username);
-        $validPassword = isset($admin['password_hash']) && password_verify($password, (string) $admin['password_hash']);
+        $repository = new LaundryRepository();
+        $admin = $repository->findAdminByUsername($username);
+        $validPassword = false;
 
-        if (!$validUsername || !$validPassword) {
+        if ($admin !== null) {
+            $storedPassword = (string) $admin['password'];
+            $validPassword = password_verify($password, $storedPassword);
+
+            if (!$validPassword && hash_equals($storedPassword, $password)) {
+                $validPassword = true;
+                $repository->upgradeAdminPassword((int) $admin['id_admin'], $password);
+            }
+        }
+
+        if ($admin === null || !$validPassword) {
+            $repository->recordActivity(
+                $admin !== null ? (int) $admin['id_admin'] : null,
+                'login',
+                'Login admin gagal',
+                'Percobaan login username: ' . ($username !== '' ? $username : '-'),
+                $username !== '' ? $username : null
+            );
             return false;
         }
 
         session_regenerate_id(true);
 
         $_SESSION[self::ADMIN_SESSION_KEY] = [
-            'username' => $username,
+            'id_admin' => (int) $admin['id_admin'],
+            'username' => (string) $admin['username'],
+            'name' => (string) $admin['nama_lengkap'],
+            'role' => (string) ($admin['role'] ?: 'admin'),
             'login_at' => date('Y-m-d H:i:s'),
         ];
+
+        $repository->recordActivity((int) $admin['id_admin'], 'login', 'Admin login', 'Admin masuk ke dashboard.', $admin['username']);
 
         if ($remember) {
             self::extendSessionCookie();
@@ -67,6 +90,18 @@ class Auth
     public static function logout(): void
     {
         self::start();
+
+        $admin = $_SESSION[self::ADMIN_SESSION_KEY] ?? null;
+
+        if (is_array($admin) && isset($admin['id_admin'])) {
+            (new LaundryRepository())->recordActivity(
+                (int) $admin['id_admin'],
+                'logout',
+                'Admin logout',
+                'Admin keluar dari sistem.',
+                (string) ($admin['username'] ?? '')
+            );
+        }
 
         $_SESSION = [];
 
@@ -92,6 +127,35 @@ class Auth
         }
 
         self::redirect('/admin/login');
+    }
+
+    public static function user(): ?array
+    {
+        self::start();
+
+        $admin = $_SESSION[self::ADMIN_SESSION_KEY] ?? null;
+
+        return is_array($admin) ? $admin : null;
+    }
+
+    public static function currentAdminId(): ?int
+    {
+        $admin = self::user();
+
+        return isset($admin['id_admin']) ? (int) $admin['id_admin'] : null;
+    }
+
+    public static function syncUser(array $admin): void
+    {
+        self::start();
+
+        $_SESSION[self::ADMIN_SESSION_KEY] = [
+            'id_admin' => (int) $admin['id_admin'],
+            'username' => (string) $admin['username'],
+            'name' => (string) $admin['nama_lengkap'],
+            'role' => (string) ($admin['role'] ?: 'admin'),
+            'login_at' => $_SESSION[self::ADMIN_SESSION_KEY]['login_at'] ?? date('Y-m-d H:i:s'),
+        ];
     }
 
     public static function csrfToken(): string

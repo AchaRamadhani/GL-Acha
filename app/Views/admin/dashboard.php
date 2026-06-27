@@ -1,5 +1,31 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$admin = $admin ?? [];
+$adminName = (string) ($admin['name'] ?? 'Admin Laundry');
+$adminRole = (string) ($admin['role'] ?? 'Administrator');
+
+$dashboardTimezone = new DateTimeZone('Asia/Makassar');
+$dashboardToday = new DateTimeImmutable('now', $dashboardTimezone);
+$monthNames = [
+    1 => 'Januari',
+    2 => 'Februari',
+    3 => 'Maret',
+    4 => 'April',
+    5 => 'Mei',
+    6 => 'Juni',
+    7 => 'Juli',
+    8 => 'Agustus',
+    9 => 'September',
+    10 => 'Oktober',
+    11 => 'November',
+    12 => 'Desember',
+];
+$currentMonthName = $monthNames[(int) $dashboardToday->format('n')];
+$currentYear = $dashboardToday->format('Y');
+$daysInCurrentMonth = (int) $dashboardToday->format('t');
+$currentPeriodLabel = sprintf('1 - %d %s %s', $daysInCurrentMonth, $currentMonthName, $currentYear);
+$chartDays = [1, 8, 15, 22, $daysInCurrentMonth];
+$chartTooltipDate = sprintf('15 %s %s', $currentMonthName, $currentYear);
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin', 'active' => true],
@@ -11,14 +37,14 @@ $sidebarItems = [
     ['icon' => '&#9881;', 'label' => 'Pengaturan', 'href' => '/admin/pengaturan'],
 ];
 
-$summaryCards = [
+$summaryCards = $summaryCards ?? [
     ['tone' => 'blue', 'icon' => '&#128101;', 'label' => 'Total Pelanggan', 'value' => '87', 'meta' => 'Bulan Ini'],
     ['tone' => 'green', 'icon' => '&#128722;', 'label' => 'Total Pesanan', 'value' => '132', 'meta' => 'Bulan Ini'],
     ['tone' => 'purple', 'icon' => '&#128179;', 'label' => 'Total Pendapatan', 'value' => 'Rp 8.450.000', 'meta' => 'Bulan Ini'],
     ['tone' => 'orange', 'icon' => '&#128203;', 'label' => 'Pesanan Selesai', 'value' => '98', 'meta' => 'Bulan Ini'],
 ];
 
-$orders = [
+$orders = $orders ?? [
     ['nota' => 'INV-250521-001', 'customer' => 'Budi Santoso', 'date' => '21 Mei 2026', 'service' => 'Cuci Setrika', 'status' => 'Dicuci', 'tone' => 'blue', 'total' => 'Rp 45.000'],
     ['nota' => 'INV-250521-002', 'customer' => 'Siti Aisyah', 'date' => '21 Mei 2026', 'service' => 'Cuci Kering', 'status' => 'Antrean', 'tone' => 'cyan', 'total' => 'Rp 35.000'],
     ['nota' => 'INV-250520-015', 'customer' => 'Andi Wijaya', 'date' => '20 Mei 2026', 'service' => 'Cuci Setrika', 'status' => 'Disetrika', 'tone' => 'orange', 'total' => 'Rp 40.000'],
@@ -26,7 +52,7 @@ $orders = [
     ['nota' => 'INV-250520-013', 'customer' => 'Dewi Lestari', 'date' => '20 Mei 2026', 'service' => 'Cuci Setrika', 'status' => 'Diambil', 'tone' => 'green', 'total' => 'Rp 50.000'],
 ];
 
-$services = [
+$services = $services ?? [
     ['name' => 'Cuci Kering', 'count' => 38, 'percent' => '18,1%', 'width' => '60%'],
     ['name' => 'Cuci Lipat', 'count' => 31, 'percent' => '14,8%', 'width' => '47%'],
     ['name' => 'Cuci Setrika Lipat', 'count' => 29, 'percent' => '13,8%', 'width' => '41%'],
@@ -84,7 +110,7 @@ ob_start();
                 </button>
                 <div class="dashboard-user">
                     <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong>Admin Laundry</strong><small>Administrator</small></p>
+                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
                     <span aria-hidden="true">&#8964;</span>
                 </div>
             </div>
@@ -98,7 +124,7 @@ ob_start();
                 </div>
                 <button class="dashboard-date-button" type="button">
                     <span aria-hidden="true">&#128197;</span>
-                    Bulan Ini (1 - 31 Mei 2026)
+                    Bulan Ini (<?= htmlspecialchars($currentPeriodLabel, ENT_QUOTES, 'UTF-8') ?>)
                     <span aria-hidden="true">&#8964;</span>
                 </button>
             </section>
@@ -123,14 +149,16 @@ ob_start();
                         <h2>Grafik Pendapatan</h2>
                         <button type="button">Bulan Ini <span aria-hidden="true">&#8964;</span></button>
                     </div>
-                    <div class="revenue-chart" aria-label="Grafik pendapatan bulan Mei">
+                    <div class="revenue-chart" aria-label="Grafik pendapatan bulan <?= htmlspecialchars($currentMonthName, ENT_QUOTES, 'UTF-8') ?>">
                         <span>4 jt</span><span>3 jt</span><span>2 jt</span><span>1 jt</span><span>0</span>
                         <i class="revenue-line"></i>
                         <b class="revenue-point"></b>
-                        <div class="chart-tooltip"><small>15 Mei 2026</small><strong>Rp 2.850.000</strong></div>
+                        <div class="chart-tooltip"><small><?= htmlspecialchars($chartTooltipDate, ENT_QUOTES, 'UTF-8') ?></small><strong>Rp 2.850.000</strong></div>
                     </div>
                     <div class="chart-dates" aria-hidden="true">
-                        <span>1 Mei</span><span>8 Mei</span><span>15 Mei</span><span>22 Mei</span><span>31 Mei</span>
+                        <?php foreach ($chartDays as $chartDay): ?>
+                            <span><?= htmlspecialchars(sprintf('%d %s', $chartDay, $currentMonthName), ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endforeach; ?>
                     </div>
                     <div class="revenue-footer">
                         <span aria-hidden="true">&#128181;</span>
@@ -144,26 +172,28 @@ ob_start();
                         <h2>Status Cucian</h2>
                         <button type="button">Semua Status <span aria-hidden="true">&#8964;</span></button>
                     </div>
+                    <?php
+                    $statuses = $statusSummary ?? [
+                        ['label' => 'Antrean', 'value' => '12', 'percent' => '18,8%', 'tone' => 'blue-light'],
+                        ['label' => 'Dicuci', 'value' => '16', 'percent' => '25,0%', 'tone' => 'blue'],
+                        ['label' => 'Dikeringkan', 'value' => '10', 'percent' => '15,6%', 'tone' => 'teal'],
+                        ['label' => 'Disetrika', 'value' => '8', 'percent' => '12,5%', 'tone' => 'amber'],
+                        ['label' => 'Selesai', 'value' => '14', 'percent' => '21,9%', 'tone' => 'purple'],
+                        ['label' => 'Diambil', 'value' => '4', 'percent' => '6,2%', 'tone' => 'green'],
+                    ];
+                    $statusTotal = array_sum(array_map(static fn ($status) => (int) $status['value'], $statuses));
+                    ?>
                     <div class="status-content">
-                        <div class="status-donut" aria-label="Total 64 pesanan">
-                            <div><span>Total</span><strong>64</strong><small>Pesanan</small></div>
+                        <div class="status-donut" aria-label="Total <?= (int) $statusTotal ?> pesanan">
+                            <div><span>Total</span><strong><?= (int) $statusTotal ?></strong><small>Pesanan</small></div>
                         </div>
                         <div class="status-legend">
-                            <?php
-                            $statuses = [
-                                ['Antrean', '12', '(18,8%)', 'blue-light'],
-                                ['Dicuci', '16', '(25,0%)', 'blue'],
-                                ['Dikeringkan', '10', '(15,6%)', 'teal'],
-                                ['Disetrika', '8', '(12,5%)', 'amber'],
-                                ['Selesai', '14', '(21,9%)', 'purple'],
-                                ['Diambil', '4', '(6,2%)', 'green'],
-                            ];
-                            foreach ($statuses as $status): ?>
-                                <p><span class="<?= $status[3] ?>" aria-hidden="true"></span><?= $status[0] ?><strong><?= $status[1] ?></strong><small><?= $status[2] ?></small></p>
+                            <?php foreach ($statuses as $status): ?>
+                                <p><span class="<?= htmlspecialchars($status['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span><?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?><strong><?= (int) $status['value'] ?></strong><small>(<?= htmlspecialchars($status['percent'], ENT_QUOTES, 'UTF-8') ?>)</small></p>
                             <?php endforeach; ?>
                         </div>
                     </div>
-                    <p class="status-total">Total Pesanan<strong>64</strong></p>
+                    <p class="status-total">Total Pesanan<strong><?= (int) $statusTotal ?></strong></p>
                 </article>
             </section>
 
@@ -190,7 +220,7 @@ ob_start();
                                     <tr>
                                         <td><?= htmlspecialchars($order['nota'], ENT_QUOTES, 'UTF-8') ?></td>
                                         <td><?= htmlspecialchars($order['customer'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td><?= htmlspecialchars($order['date'], ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td><?= htmlspecialchars($order['date'] ?? $order['in'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                                         <td><?= htmlspecialchars($order['service'], ENT_QUOTES, 'UTF-8') ?></td>
                                         <td><span class="status-pill <?= htmlspecialchars($order['tone'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($order['status'], ENT_QUOTES, 'UTF-8') ?></span></td>
                                         <td><?= htmlspecialchars($order['total'], ENT_QUOTES, 'UTF-8') ?></td>

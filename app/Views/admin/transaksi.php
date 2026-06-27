@@ -1,6 +1,9 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
-$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
+$admin = $admin ?? [];
+$adminName = (string) ($admin['name'] ?? 'Admin Laundry');
+$adminRole = (string) ($admin['role'] ?? 'Administrator');
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/logo-wa.jpg?v=1" alt="">';
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -12,14 +15,14 @@ $sidebarItems = [
     ['icon' => '&#9881;', 'label' => 'Pengaturan', 'href' => '/admin/pengaturan'],
 ];
 
-$stats = [
+$stats = $stats ?? [
     ['tone' => 'green', 'icon' => '&#128722;', 'label' => 'Total Transaksi', 'value' => '132', 'meta' => 'Transaksi'],
     ['tone' => 'blue', 'icon' => '&#128197;', 'label' => 'Transaksi Hari Ini', 'value' => '18', 'meta' => 'Transaksi'],
     ['tone' => 'orange', 'icon' => '&#9719;', 'label' => 'Belum Selesai', 'value' => '34', 'meta' => 'Transaksi'],
     ['tone' => 'green', 'icon' => '&#10003;', 'label' => 'Selesai', 'value' => '98', 'meta' => 'Transaksi'],
 ];
 
-$transactions = [
+$transactions = $transactions ?? [
     ['no' => 1, 'nota' => 'INV-250521-001', 'name' => 'Budi Santoso', 'service' => 'Cuci Kering', 'weight' => '3,5 kg', 'in' => "21 Mei 2026\n10:15", 'eta' => "23 Mei 2026\n15:00", 'total' => 'Rp 45.000', 'status' => 'Selesai', 'tone' => 'purple'],
     ['no' => 2, 'nota' => 'INV-250521-002', 'name' => 'Siti Aisyah', 'service' => 'Cuci Lipat', 'weight' => '5,0 kg', 'in' => "21 Mei 2026\n11:20", 'eta' => "21 Mei 2026\n18:00", 'total' => 'Rp 35.000', 'status' => 'Diambil', 'tone' => 'green'],
     ['no' => 3, 'nota' => 'INV-250520-015', 'name' => 'Andi Wijaya', 'service' => 'Cuci Setrika Lipat', 'weight' => '4,0 kg', 'in' => "20 Mei 2026\n09:30", 'eta' => "21 Mei 2026\n15:00", 'total' => 'Rp 40.000', 'status' => 'Dicuci', 'tone' => 'blue'],
@@ -32,7 +35,7 @@ $transactions = [
     ['no' => 10, 'nota' => 'INV-250517-008', 'name' => 'Agus Setiawan', 'service' => 'Cuci Kering', 'weight' => '6,5 kg', 'in' => "17 Mei 2026\n16:40", 'eta' => "19 Mei 2026\n15:00", 'total' => 'Rp 75.000', 'status' => 'Antrean', 'tone' => 'blue'],
 ];
 
-$statusSummary = [
+$statusSummary = $statusSummary ?? [
     ['label' => 'Antrean', 'value' => 18, 'percent' => '13,6%', 'tone' => 'blue-light'],
     ['label' => 'Diproses', 'value' => 12, 'percent' => '9,1%', 'tone' => 'blue'],
     ['label' => 'Dicuci', 'value' => 20, 'percent' => '15,2%', 'tone' => 'blue-dark'],
@@ -42,13 +45,21 @@ $statusSummary = [
     ['label' => 'Diambil', 'value' => 24, 'percent' => '18,2%', 'tone' => 'green'],
 ];
 
-$noteActivities = [
+$noteActivities = $noteActivities ?? [
     ['icon' => '&#128065;', 'tone' => 'blue', 'title' => 'Nota dilihat', 'detail' => 'INV-250521-001 - Budi Santoso', 'time' => '5 mnt lalu'],
     ['icon' => $whatsappLogo, 'tone' => 'green whatsapp-activity-icon', 'title' => 'Nota dikirim ulang via WhatsApp', 'detail' => 'INV-250521-002 - Siti Aisyah', 'time' => '12 mnt lalu'],
     ['icon' => '&#128424;', 'tone' => 'blue', 'title' => 'Nota dicetak', 'detail' => 'INV-250520-015 - Andi Wijaya', 'time' => '25 mnt lalu'],
     ['icon' => '&#128065;', 'tone' => 'blue', 'title' => 'Nota dilihat', 'detail' => 'INV-250520-014 - Rina Marlina', 'time' => '32 mnt lalu'],
     ['icon' => $whatsappLogo, 'tone' => 'green whatsapp-activity-icon', 'title' => 'Nota dikirim ulang via WhatsApp', 'detail' => 'INV-250520-013 - Dewi Lestari', 'time' => '45 mnt lalu'],
 ];
+$transactionSummary = $transactionSummary ?? [
+    'total' => count($transactions),
+    'revenue' => 0,
+];
+$totalRows = $totalRows ?? count($transactions);
+$averageTransaction = (int) ($transactionSummary['total'] ?? 0) > 0
+    ? ((float) ($transactionSummary['revenue'] ?? 0) / (int) $transactionSummary['total'])
+    : 0;
 
 ob_start();
 ?>
@@ -90,7 +101,7 @@ ob_start();
                 </button>
                 <div class="dashboard-user">
                     <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong>Admin Laundry</strong><small>Administrator</small></p>
+                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
                     <span aria-hidden="true">&#8964;</span>
                 </div>
             </div>
@@ -191,7 +202,7 @@ ob_start();
                     </div>
 
                     <div class="laundry-pagination transaction-pagination">
-                        <p>Menampilkan 1 - 10 dari 132 transaksi</p>
+                        <p>Menampilkan <?= count($transactions) > 0 ? '1' : '0' ?> - <?= count($transactions) ?> dari <?= (int) $totalRows ?> transaksi</p>
                         <div class="page-buttons">
                             <button type="button" aria-label="Sebelumnya">&#8592;</button>
                             <button class="active" type="button">1</button>
@@ -210,15 +221,15 @@ ob_start();
                         <div class="transaction-metric-list">
                             <article>
                                 <span class="blue" aria-hidden="true">&#128188;</span>
-                                <p>Total Transaksi<strong>132 <small>Transaksi</small></strong></p>
+                                <p>Total Transaksi<strong><?= (int) ($transactionSummary['total'] ?? 0) ?> <small>Transaksi</small></strong></p>
                             </article>
                             <article>
                                 <span class="green" aria-hidden="true">&#128181;</span>
-                                <p>Total Pendapatan<strong>Rp 8.450.000</strong></p>
+                                <p>Total Pendapatan<strong>Rp <?= number_format((float) ($transactionSummary['revenue'] ?? 0), 0, ',', '.') ?></strong></p>
                             </article>
                             <article>
                                 <span class="orange" aria-hidden="true">&#128200;</span>
-                                <p>Rata-rata per Transaksi<strong>Rp 64.015</strong></p>
+                                <p>Rata-rata per Transaksi<strong>Rp <?= number_format($averageTransaction, 0, ',', '.') ?></strong></p>
                             </article>
                         </div>
 

@@ -1,5 +1,9 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
+$admin = $admin ?? [];
+$adminName = (string) ($admin['name'] ?? 'Admin Laundry');
+$adminRole = (string) ($admin['role'] ?? 'Administrator');
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -21,7 +25,7 @@ $statusSteps = [
     ['label' => 'Diambil', 'tone' => 'green', 'icon' => '&#128717;'],
 ];
 
-$orders = [
+$orders = $orders ?? [
     [
         'key' => 'budi-santoso',
         'nota' => 'INV-250521-001',
@@ -221,14 +225,25 @@ $orders = [
     ],
 ];
 
-$stats = [
+$stats = $stats ?? [
     ['tone' => 'blue', 'icon' => '&#128101;', 'label' => 'Antrean', 'value' => '18', 'meta' => 'Cucian'],
     ['tone' => 'green', 'icon' => '&#9881;', 'label' => 'Diproses', 'value' => '24', 'meta' => 'Cucian'],
     ['tone' => 'teal', 'icon' => '&#128705;', 'label' => 'Dicuci', 'value' => '31', 'meta' => 'Cucian'],
     ['tone' => 'purple', 'icon' => '&#10003;', 'label' => 'Selesai', 'value' => '22', 'meta' => 'Cucian'],
 ];
 
-$selectedOrder = $orders[2];
+$selectedOrder = $orders[2] ?? $orders[0] ?? [
+    'key' => '',
+    'nota' => '-',
+    'customer' => '-',
+    'service' => '-',
+    'currentStatus' => 'Antrean',
+    'tone' => 'blue',
+    'in' => '-',
+    'eta' => '-',
+    'steps' => [],
+    'history' => [],
+];
 $selectedStatusIndex = array_search($selectedOrder['currentStatus'], array_column($statusSteps, 'label'), true);
 $selectedProgress = $selectedStatusIndex === false ? 0 : $selectedStatusIndex / max(count($statusSteps) - 1, 1);
 
@@ -272,7 +287,7 @@ ob_start();
                 </button>
                 <div class="dashboard-user">
                     <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong>Admin Laundry</strong><small>Administrator</small></p>
+                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
                     <span aria-hidden="true">&#8964;</span>
                 </div>
             </div>
@@ -286,6 +301,13 @@ ob_start();
                     <p>Perubahan status dilakukan di halaman ini agar riwayat proses cucian tercatat dengan jelas.</p>
                 </div>
             </section>
+
+            <?php if (!empty($successMessage)): ?>
+                <div class="admin-flash success"><?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+            <?php if (!empty($errorMessage)): ?>
+                <div class="admin-flash error"><?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
 
             <section class="laundry-stat-grid status-stat-grid" aria-label="Ringkasan update status">
                 <?php foreach ($stats as $stat): ?>
@@ -341,6 +363,7 @@ ob_start();
                             </thead>
                             <tbody>
                                 <?php foreach ($orders as $order): ?>
+                                    <?php $statusFormId = 'statusForm' . preg_replace('/[^A-Za-z0-9_-]/', '', $order['key']); ?>
                                     <tr class="status-order-row <?= $order['key'] === $selectedOrder['key'] ? 'is-active' : '' ?>" data-status-row="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>">
                                         <td><?= htmlspecialchars($order['nota'], ENT_QUOTES, 'UTF-8') ?></td>
                                         <td>
@@ -351,7 +374,7 @@ ob_start();
                                         <td><?= htmlspecialchars($order['service'], ENT_QUOTES, 'UTF-8') ?></td>
                                         <td><span class="status-pill <?= htmlspecialchars($order['tone'], ENT_QUOTES, 'UTF-8') ?>" data-current-status="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($order['currentStatus'], ENT_QUOTES, 'UTF-8') ?></span></td>
                                         <td>
-                                            <select data-status-select="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" aria-label="Pilih status baru untuk <?= htmlspecialchars($order['customer'], ENT_QUOTES, 'UTF-8') ?>">
+                                            <select name="status" form="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" data-status-select="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" aria-label="Pilih status baru untuk <?= htmlspecialchars($order['customer'], ENT_QUOTES, 'UTF-8') ?>">
                                                 <?php foreach ($statusSteps as $status): ?>
                                                     <option value="<?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?>" <?= $status['label'] === $order['currentStatus'] ? 'selected' : '' ?>>
                                                         <?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?>
@@ -360,10 +383,14 @@ ob_start();
                                             </select>
                                         </td>
                                         <td>
-                                            <input class="status-note-input" type="text" data-status-note="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" placeholder="Masukkan catatan...">
+                                            <input class="status-note-input" type="text" name="note" form="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" data-status-note="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" placeholder="Masukkan catatan...">
                                         </td>
                                         <td>
-                                            <button class="status-save-button" type="button" data-save-status="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>">Simpan</button>
+                                            <form id="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" action="<?= $safeBaseUrl ?>/admin/update-status" method="post">
+                                                <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+                                                <input type="hidden" name="no_nota" value="<?= htmlspecialchars($order['nota'], ENT_QUOTES, 'UTF-8') ?>">
+                                                <button class="status-save-button" type="submit" data-save-status="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>">Simpan</button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

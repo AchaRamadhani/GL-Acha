@@ -1,5 +1,12 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
+$settings = $settings ?? [];
+$admin = $admin ?? [];
+$setting = static fn (string $key, string $fallback = ''): string => (string) ($settings[$key] ?? $fallback);
+$adminName = (string) ($admin['name'] ?? 'Admin Laundry');
+$adminUsername = (string) ($admin['username'] ?? 'admin');
+$adminRole = (string) ($admin['role'] ?? 'Administrator');
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -51,7 +58,7 @@ ob_start();
                 </button>
                 <div class="dashboard-user">
                     <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong>Admin Laundry</strong><small>Administrator</small></p>
+                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
                     <span aria-hidden="true">&#8964;</span>
                 </div>
             </div>
@@ -65,15 +72,23 @@ ob_start();
                 </div>
             </section>
 
-            <form class="settings-form" action="#" method="post" data-settings-form>
+            <?php if (!empty($successMessage)): ?>
+                <div class="admin-flash success"><?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+            <?php if (!empty($errorMessage)): ?>
+                <div class="admin-flash error"><?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+
+            <form class="settings-form" action="<?= $safeBaseUrl ?>/admin/pengaturan" method="post" data-settings-form>
+                <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
                 <section class="settings-top-grid">
                     <article class="settings-card settings-profile-card">
                         <h2>Profil Admin</h2>
 
                         <div class="settings-profile-hero">
                             <span class="settings-profile-avatar" aria-hidden="true"></span>
-                            <strong data-settings-admin-name>Admin Laundry</strong>
-                            <small>Administrator</small>
+                            <strong data-settings-admin-name><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong>
+                            <small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small>
                         </div>
 
                         <div class="settings-card-divider"></div>
@@ -83,14 +98,14 @@ ob_start();
                             <span>Username</span>
                             <span class="settings-input-shell">
                                 <i aria-hidden="true">&#128100;</i>
-                                <input id="settingUsername" name="username" type="text" value="admin.laundry" autocomplete="username">
+                                <input id="settingUsername" name="username" type="text" value="<?= htmlspecialchars($adminUsername, ENT_QUOTES, 'UTF-8') ?>" autocomplete="username">
                             </span>
                         </label>
                         <label class="settings-field" for="settingEmail" data-settings-field data-setting-label="Email">
                             <span>Email</span>
                             <span class="settings-input-shell">
                                 <i aria-hidden="true">&#9993;</i>
-                                <input id="settingEmail" name="email" type="email" value="admin@ghavalaundry.com" autocomplete="email">
+                                <input id="settingEmail" name="email" type="email" value="<?= htmlspecialchars($setting('admin_email', 'admin@ghavalaundry.com'), ENT_QUOTES, 'UTF-8') ?>" autocomplete="email">
                             </span>
                         </label>
                     </article>
@@ -101,20 +116,20 @@ ob_start();
                         <div class="settings-field-grid">
                             <label class="settings-field" for="settingLaundryName" data-settings-field data-setting-label="Nama Laundry">
                                 <span>Nama Laundry</span>
-                                <input id="settingLaundryName" name="laundry_name" type="text" value="Ghava Laundry" data-laundry-name-input>
+                                <input id="settingLaundryName" name="laundry_name" type="text" value="<?= htmlspecialchars($setting('laundry_name', 'Ghava Laundry'), ENT_QUOTES, 'UTF-8') ?>" data-laundry-name-input>
                             </label>
                             <label class="settings-field" for="settingWhatsapp" data-settings-field data-setting-label="Nomor WhatsApp">
                                 <span>Nomor WhatsApp</span>
                                 <span class="settings-input-shell">
                                     <i aria-hidden="true">&#128222;</i>
-                                    <input id="settingWhatsapp" name="whatsapp" type="tel" value="0812-3456-7890">
+                                    <input id="settingWhatsapp" name="whatsapp" type="tel" value="<?= htmlspecialchars($setting('whatsapp', '081242910340'), ENT_QUOTES, 'UTF-8') ?>">
                                 </span>
                             </label>
                         </div>
 
                         <label class="settings-field" for="settingAddress" data-settings-field data-setting-label="Alamat">
                             <span>Alamat</span>
-                            <input id="settingAddress" name="address" type="text" value="Jl. Sudirman No. 123, Kec. Sukmajaya, Kota Depok, Jawa Barat 16412">
+                            <input id="settingAddress" name="address" type="text" value="<?= htmlspecialchars($setting('address'), ENT_QUOTES, 'UTF-8') ?>">
                         </label>
 
                         <div class="settings-field settings-time-field" data-settings-field data-setting-label="Jam Operasional">
@@ -123,19 +138,18 @@ ob_start();
                                 <label class="settings-select-shell" for="settingOpenTime">
                                     <i aria-hidden="true">&#128337;</i>
                                     <select id="settingOpenTime" name="open_time">
-                                        <option>07:00</option>
-                                        <option selected>08:00</option>
-                                        <option>09:00</option>
+                                        <?php foreach (['07:00', '08:00', '09:00'] as $time): ?>
+                                            <option <?= $setting('open_time', '07:00') === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </label>
                                 <strong>s/d</strong>
                                 <label class="settings-select-shell" for="settingCloseTime">
                                     <i aria-hidden="true">&#128337;</i>
                                     <select id="settingCloseTime" name="close_time">
-                                        <option>18:00</option>
-                                        <option>19:00</option>
-                                        <option selected>20:00</option>
-                                        <option>21:00</option>
+                                        <?php foreach (['18:00', '19:00', '20:00', '21:00'] as $time): ?>
+                                            <option <?= $setting('close_time', '21:00') === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </label>
                             </div>
@@ -143,8 +157,7 @@ ob_start();
 
                         <label class="settings-field" for="settingMessage" data-settings-field data-setting-label="Pesan Otomatis WhatsApp">
                             <span>Pesan Otomatis WhatsApp saat status selesai</span>
-                            <textarea id="settingMessage" name="message" maxlength="300" data-message-counter-source>Halo {nama_pelanggan}, cucian Anda dengan nomor pesanan {kode_pesanan} sudah selesai.
-Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada Ghava Laundry! &#128522;</textarea>
+                            <textarea id="settingMessage" name="message" maxlength="300" data-message-counter-source><?= htmlspecialchars($setting('message'), ENT_QUOTES, 'UTF-8') ?></textarea>
                         </label>
                         <div class="settings-helper-row">
                             <small>Gunakan {nama_pelanggan} dan {kode_pesanan} sebagai placeholder dinamis.</small>
@@ -164,7 +177,7 @@ Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada G
                                 <small>Tampilkan notifikasi pada browser</small>
                             </span>
                             <span class="settings-toggle">
-                                <input type="checkbox" name="browser_notification" checked>
+                                <input type="checkbox" name="browser_notification" <?= $setting('browser_notification', '1') === '1' ? 'checked' : '' ?>>
                                 <i aria-hidden="true"></i>
                             </span>
                         </label>
@@ -176,7 +189,7 @@ Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada G
                                 <small>Terima notifikasi pesan dari sistem</small>
                             </span>
                             <span class="settings-toggle">
-                                <input type="checkbox" name="message_notification" checked>
+                                <input type="checkbox" name="message_notification" <?= $setting('message_notification', '1') === '1' ? 'checked' : '' ?>>
                                 <i aria-hidden="true"></i>
                             </span>
                         </label>
@@ -188,9 +201,9 @@ Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada G
                                 <small>Pilih format tanggal yang digunakan</small>
                             </span>
                             <select id="settingDateFormat" name="date_format">
-                                <option selected>DD MMMM YYYY</option>
-                                <option>DD/MM/YYYY</option>
-                                <option>YYYY-MM-DD</option>
+                                <?php foreach (['DD MMMM YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'] as $format): ?>
+                                    <option <?= $setting('date_format', 'DD MMMM YYYY') === $format ? 'selected' : '' ?>><?= htmlspecialchars($format, ENT_QUOTES, 'UTF-8') ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </label>
 
@@ -201,7 +214,7 @@ Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada G
                                 <small>Tampilkan dialog konfirmasi saat logout</small>
                             </span>
                             <span class="settings-toggle">
-                                <input type="checkbox" name="logout_confirmation" checked data-logout-confirm-toggle>
+                                <input type="checkbox" name="logout_confirmation" <?= $setting('logout_confirmation', '1') === '1' ? 'checked' : '' ?> data-logout-confirm-toggle>
                                 <i aria-hidden="true"></i>
                             </span>
                         </label>

@@ -1,5 +1,8 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$admin = $admin ?? [];
+$adminName = (string) ($admin['name'] ?? 'Admin Laundry');
+$adminRole = (string) ($admin['role'] ?? 'Administrator');
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -11,14 +14,14 @@ $sidebarItems = [
     ['icon' => '&#9881;', 'label' => 'Pengaturan', 'href' => '/admin/pengaturan'],
 ];
 
-$stats = [
+$stats = $stats ?? [
     ['tone' => 'blue', 'icon' => '&#128101;', 'label' => 'Total Pelanggan', 'value' => '87', 'meta' => 'Orang'],
     ['tone' => 'green', 'icon' => '&#128100;', 'label' => 'Pelanggan Bulan Ini', 'value' => '28', 'meta' => 'Orang'],
     ['tone' => 'purple', 'icon' => '&#128100;&#43;', 'label' => 'Pelanggan Baru', 'value' => '12', 'meta' => 'Orang'],
     ['tone' => 'orange', 'icon' => '&#128706;', 'label' => 'Cucian Berjalan', 'value' => '34', 'meta' => 'Orang'],
 ];
 
-$customers = [
+$customers = $customers ?? [
     ['no' => 1, 'id' => 'PLG-250521-001', 'name' => 'Budi Santoso', 'phone' => '0812-3456-7890', 'address' => 'Jl. Melati No. 12, Jakarta', 'transactions' => 15, 'active' => 2, 'last' => '21 Mei 2026'],
     ['no' => 2, 'id' => 'PLG-250521-002', 'name' => 'Siti Aisyah', 'phone' => '0813-1122-3344', 'address' => 'Jl. Anggrek No. 5, Jakarta', 'transactions' => 11, 'active' => 1, 'last' => '21 Mei 2026'],
     ['no' => 3, 'id' => 'PLG-250520-003', 'name' => 'Andi Wijaya', 'phone' => '0812-8877-6655', 'address' => 'Jl. Kenanga No. 8, Jakarta', 'transactions' => 9, 'active' => 1, 'last' => '20 Mei 2026'],
@@ -31,19 +34,20 @@ $customers = [
     ['no' => 10, 'id' => 'PLG-250517-010', 'name' => 'Yoga Pratama', 'phone' => '0813-9090-1122', 'address' => 'Jl. Kamboja No. 6, Jakarta', 'transactions' => 4, 'active' => 1, 'last' => '17 Mei 2026'],
 ];
 
-$customerSummary = [
+$customerSummary = $customerSummary ?? [
     ['label' => 'Pelanggan Aktif', 'value' => 62, 'percent' => '71,3%', 'tone' => 'blue'],
     ['label' => 'Pelanggan Baru', 'value' => 12, 'percent' => '13,8%', 'tone' => 'green'],
     ['label' => 'Pelanggan Tidak Aktif', 'value' => 13, 'percent' => '14,9%', 'tone' => 'orange'],
 ];
 
-$activities = [
+$activities = $activities ?? [
     ['tone' => 'blue', 'name' => 'Budi Santoso', 'detail' => 'Membuat pesanan baru', 'time' => '2 jam lalu'],
     ['tone' => 'green', 'name' => 'Rina Marlina', 'detail' => 'Pesanan selesai diambil', 'time' => '4 jam lalu'],
     ['tone' => 'purple', 'name' => 'Siti Aisyah', 'detail' => 'Update status cucian', 'time' => '5 jam lalu'],
     ['tone' => 'blue', 'name' => 'Ahmad Fauzi', 'detail' => 'Membuat pesanan baru', 'time' => '1 hari lalu'],
     ['tone' => 'blue', 'name' => 'Dewi Lestari', 'detail' => 'Pesanan selesai diambil', 'time' => '1 hari lalu'],
 ];
+$totalRows = $totalRows ?? count($customers);
 
 ob_start();
 ?>
@@ -85,7 +89,7 @@ ob_start();
                 </button>
                 <div class="dashboard-user">
                     <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong>Admin Laundry</strong><small>Administrator</small></p>
+                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
                     <span aria-hidden="true">&#8964;</span>
                 </div>
             </div>
@@ -184,7 +188,7 @@ ob_start();
                     </div>
 
                     <div class="laundry-pagination customer-pagination">
-                        <p>Menampilkan 1 - 10 dari 87 pelanggan</p>
+                        <p>Menampilkan <?= count($customers) > 0 ? '1' : '0' ?> - <?= count($customers) ?> dari <?= (int) $totalRows ?> pelanggan</p>
                         <select aria-label="Jumlah pelanggan per halaman">
                             <option>10 per halaman</option>
                         </select>
@@ -204,8 +208,8 @@ ob_start();
                     <article class="laundry-widget customer-summary-widget">
                         <h2>Ringkasan Pelanggan</h2>
                         <div class="customer-summary-wrap">
-                            <div class="customer-donut" aria-label="Total 87 pelanggan">
-                                <div><strong>87</strong><span>Total</span></div>
+                            <div class="customer-donut" aria-label="Total <?= (int) $totalRows ?> pelanggan">
+                                <div><strong><?= (int) $totalRows ?></strong><span>Total</span></div>
                             </div>
                             <div class="customer-summary-list">
                                 <?php foreach ($customerSummary as $summary): ?>

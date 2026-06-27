@@ -1,6 +1,10 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
-$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/whatsapp-logo.svg?v=6" alt="">';
+$csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
+$admin = $admin ?? [];
+$adminName = (string) ($admin['name'] ?? 'Admin Laundry');
+$adminRole = (string) ($admin['role'] ?? 'Administrator');
+$whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/logo-wa.jpg?v=1" alt="">';
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -12,14 +16,14 @@ $sidebarItems = [
     ['icon' => '&#9881;', 'label' => 'Pengaturan', 'href' => '/admin/pengaturan'],
 ];
 
-$stats = [
+$stats = $stats ?? [
     ['tone' => 'blue', 'icon' => '&#128722;', 'label' => 'Total Data Cucian', 'value' => '186', 'meta' => 'Cucian'],
     ['tone' => 'orange', 'icon' => '&#9719;', 'label' => 'Sedang Diproses', 'value' => '58', 'meta' => 'Cucian'],
     ['tone' => 'green', 'icon' => '&#10003;', 'label' => 'Selesai', 'value' => '32', 'meta' => 'Cucian'],
     ['tone' => 'purple', 'icon' => '&#128717;', 'label' => 'Diambil', 'value' => '24', 'meta' => 'Cucian'],
 ];
 
-$laundryRows = [
+$laundryRows = $laundryRows ?? [
     ['no' => 1, 'nota' => 'INV-250521-001', 'name' => 'Budi Santoso', 'phone' => '0812-3456-7890', 'service' => 'Cuci Kering', 'weight' => '5,0 kg', 'in' => '21 Mei 2026', 'eta' => '23 Mei 2026', 'status' => 'Antrean', 'tone' => 'cyan', 'total' => 'Rp 45.000'],
     ['no' => 2, 'nota' => 'INV-250521-002', 'name' => 'Siti Aisyah', 'phone' => '0813-2345-6789', 'service' => 'Cuci Lipat', 'weight' => '4,2 kg', 'in' => '21 Mei 2026', 'eta' => '22 Mei 2026', 'status' => 'Diproses', 'tone' => 'orange', 'total' => 'Rp 35.000'],
     ['no' => 3, 'nota' => 'INV-250521-003', 'name' => 'Andi Wijaya', 'phone' => '0811-2233-4455', 'service' => 'Cuci Setrika Lipat', 'weight' => '6,0 kg', 'in' => '21 Mei 2026', 'eta' => '23 Mei 2026', 'status' => 'Dicuci', 'tone' => 'blue', 'total' => 'Rp 60.000'],
@@ -32,7 +36,7 @@ $laundryRows = [
     ['no' => 10, 'nota' => 'INV-250518-009', 'name' => 'Fajar Nugroho', 'phone' => '0812-9900-1122', 'service' => 'Cuci Kering', 'weight' => '8,0 kg', 'in' => '18 Mei 2026', 'eta' => '20 Mei 2026', 'status' => 'Diambil', 'tone' => 'purple', 'total' => 'Rp 75.000'],
 ];
 
-$statusSummary = [
+$statusSummary = $statusSummary ?? [
     ['label' => 'Antrean', 'value' => 46, 'percent' => '24,7%', 'tone' => 'blue-light'],
     ['label' => 'Diproses', 'value' => 58, 'percent' => '31,2%', 'tone' => 'orange'],
     ['label' => 'Dicuci', 'value' => 32, 'percent' => '17,2%', 'tone' => 'blue'],
@@ -42,17 +46,19 @@ $statusSummary = [
     ['label' => 'Diambil', 'value' => 0, 'percent' => '0%', 'tone' => 'purple'],
 ];
 
-$activities = [
+$activities = $activities ?? [
     ['icon' => '+', 'tone' => 'blue', 'title' => 'Data cucian baru ditambahkan', 'detail' => 'INV-250521-006 - Lina Wati', 'time' => '09:45'],
     ['icon' => '&#9998;', 'tone' => 'blue', 'title' => 'Data cucian diperbarui', 'detail' => 'INV-250521-002 - Siti Aisyah', 'time' => '09:20'],
     ['icon' => '&#10003;', 'tone' => 'green', 'title' => 'Status cucian selesai', 'detail' => 'INV-250519-012 - Maya Putri', 'time' => '08:55'],
     ['icon' => '&#128717;', 'tone' => 'purple', 'title' => 'Cucian diambil pelanggan', 'detail' => 'INV-250518-009 - Fajar Nugroho', 'time' => '08:30'],
     ['icon' => '&#128465;', 'tone' => 'red', 'title' => 'Data cucian dihapus', 'detail' => 'INV-250517-008 - Dedi Kurniawan', 'time' => '08:10'],
 ];
+$packages = $packages ?? [];
+$totalRows = $totalRows ?? count($laundryRows);
 
 ob_start();
 ?>
-<div class="admin-dashboard-page laundry-admin-page">
+<div class="admin-dashboard-page laundry-admin-page laundry-cucian-page">
     <aside class="dashboard-sidebar" data-dashboard-sidebar>
         <a class="brand-logo dashboard-logo" href="<?= $safeBaseUrl ?>/admin" aria-label="Ghava Laundry">
             <img src="<?= $safeBaseUrl ?>/assets/img/ghava-logo.svg" alt="Ghava Laundry">
@@ -79,6 +85,11 @@ ob_start();
                 <span aria-hidden="true">&#9776;</span>
             </button>
 
+            <label class="dashboard-search" for="laundryTopSearch">
+                <span aria-hidden="true">&#128269;</span>
+                <input id="laundryTopSearch" type="search" placeholder="Cari pelanggan, nota, atau layanan..." autocomplete="off">
+            </label>
+
             <div class="dashboard-userbar">
                 <button class="dashboard-icon-button badge-button" type="button" aria-label="Notifikasi">
                     <span aria-hidden="true">&#128276;</span>
@@ -90,7 +101,7 @@ ob_start();
                 </button>
                 <div class="dashboard-user">
                     <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong>Admin Laundry</strong><small>Administrator</small></p>
+                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
                     <span aria-hidden="true">&#8964;</span>
                 </div>
             </div>
@@ -102,7 +113,7 @@ ob_start();
                     <h1>Data Cucian</h1>
                     <p>Kelola seluruh data cucian pelanggan: tambah, lihat, ubah, dan hapus data cucian.</p>
                 </div>
-                <button class="add-laundry-button" type="button">
+                <button class="add-laundry-button" type="button" data-laundry-modal-open>
                     <span aria-hidden="true">+</span>
                     Tambah Data Cucian
                 </button>
@@ -112,6 +123,13 @@ ob_start();
                 <span aria-hidden="true">&#8505;</span>
                 <p><strong>Catatan:</strong> Halaman ini untuk pengelolaan data cucian (CRUD). Update status cucian dilakukan melalui menu <a href="<?= $safeBaseUrl ?>/admin/update-status">Update Status</a>.</p>
             </div>
+
+            <?php if (!empty($successMessage)): ?>
+                <div class="admin-flash success"><?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+            <?php if (!empty($errorMessage)): ?>
+                <div class="admin-flash error"><?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
 
             <section class="laundry-stat-grid" aria-label="Ringkasan data cucian">
                 <?php foreach ($stats as $stat): ?>
@@ -199,7 +217,7 @@ ob_start();
                     </div>
 
                     <div class="laundry-pagination">
-                        <p>Menampilkan 1 - 10 dari 186 data</p>
+                        <p>Menampilkan <?= count($laundryRows) > 0 ? '1' : '0' ?> - <?= count($laundryRows) ?> dari <?= (int) $totalRows ?> data</p>
                         <div class="page-buttons">
                             <button type="button" aria-label="Sebelumnya">&#8249;</button>
                             <button class="active" type="button">1</button>
@@ -221,8 +239,8 @@ ob_start();
                     <article class="laundry-widget">
                         <h2>Ringkasan Status</h2>
                         <div class="laundry-status-wrap">
-                            <div class="laundry-status-donut" aria-label="Total 186 data cucian">
-                                <div><strong>186</strong><span>Total</span></div>
+                            <div class="laundry-status-donut" aria-label="Total <?= (int) $totalRows ?> data cucian">
+                                <div><strong><?= (int) $totalRows ?></strong><span>Total</span></div>
                             </div>
                             <div class="laundry-status-list">
                                 <?php foreach ($statusSummary as $status): ?>
@@ -247,6 +265,114 @@ ob_start();
                 </aside>
             </section>
         </main>
+
+        <div class="laundry-modal-backdrop" data-laundry-modal hidden>
+            <section class="laundry-dialog" role="dialog" aria-modal="true" aria-labelledby="laundryModalTitle">
+                <button class="laundry-modal-close" type="button" aria-label="Tutup form tambah data cucian" data-laundry-modal-close>&times;</button>
+
+                <header class="laundry-modal-header">
+                    <h2 id="laundryModalTitle">Tambah Data Cucian</h2>
+                    <p>Masukkan data cucian pelanggan dengan lengkap.</p>
+                </header>
+
+                <form class="laundry-modal-form" action="<?= $safeBaseUrl ?>/admin/cucian" method="post" data-laundry-form>
+                    <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+                    <div class="laundry-modal-field">
+                        <label for="laundryNota">No. Nota</label>
+                        <input id="laundryNota" type="text" value="Otomatis" readonly>
+                        <small>Nomor nota akan digenerate otomatis</small>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryCustomerName">Nama Pelanggan <span>*</span></label>
+                        <input id="laundryCustomerName" type="text" name="customer_name" placeholder="Masukkan nama pelanggan" autocomplete="name" required>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryPhone">No. Telepon <span>*</span></label>
+                        <input id="laundryPhone" type="tel" name="phone" placeholder="Contoh: 0812-3456-7890" autocomplete="tel" required>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryService">Jenis Layanan <span>*</span></label>
+                        <select id="laundryService" name="service" required>
+                            <option value="">Pilih jenis layanan</option>
+                            <?php foreach ($packages as $package): ?>
+                                <option value="<?= (int) ($package['id'] ?? 0) ?>"><?= htmlspecialchars($package['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryWeight">Berat / Qty <span>*</span></label>
+                        <div class="laundry-split-input">
+                            <input id="laundryWeight" type="number" name="weight" min="0" step="0.1" placeholder="Contoh: 5" required>
+                            <select name="unit" aria-label="Satuan berat atau jumlah">
+                                <option>kg</option>
+                                <option>pcs</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryDateIn">Tanggal Masuk <span>*</span></label>
+                        <div class="laundry-date-input">
+                            <input id="laundryDateIn" type="text" name="date_in" placeholder="Pilih tanggal masuk" data-laundry-date-input required>
+                            <span aria-hidden="true">&#128197;</span>
+                        </div>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryEta">Estimasi Selesai <span>*</span></label>
+                        <div class="laundry-date-input">
+                            <input id="laundryEta" type="text" name="eta" placeholder="Pilih tanggal estimasi selesai" data-laundry-date-input required>
+                            <span aria-hidden="true">&#128197;</span>
+                        </div>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryInitialStatus">Status Awal <span>*</span></label>
+                        <select id="laundryInitialStatus" name="initial_status" required>
+                            <option>Antrean</option>
+                            <option>Diproses</option>
+                            <option>Dicuci</option>
+                            <option>Dikeringkan</option>
+                            <option>Disetrika</option>
+                        </select>
+                        <small>Status awal cucian saat pertama masuk</small>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryTotal">Total Harga <span>*</span></label>
+                        <div class="laundry-price-input">
+                            <span>Rp</span>
+                            <input id="laundryTotal" type="number" name="total" min="0" step="500" placeholder="Contoh: 45000" required>
+                        </div>
+                        <small>Masukkan total harga cucian</small>
+                    </div>
+
+                    <div class="laundry-modal-field">
+                        <label for="laundryNotes">Catatan</label>
+                        <textarea id="laundryNotes" name="notes" rows="3" placeholder="Contoh: noda membandel di kerah, dll"></textarea>
+                        <small>Catatan tambahan untuk cucian (opsional)</small>
+                    </div>
+
+                    <div class="laundry-modal-actions">
+                        <button class="laundry-clear-button" type="button" data-laundry-form-reset>
+                            <span aria-hidden="true">&#8635;</span>
+                            Bersihkan
+                        </button>
+                        <div>
+                            <button class="laundry-cancel-button" type="button" data-laundry-modal-close>Batal</button>
+                            <button class="laundry-save-button" type="submit">
+                                <span aria-hidden="true">&#128190;</span>
+                                Simpan Data
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+        </div>
     </div>
 </div>
 <?php

@@ -1,0 +1,873 @@
+<?php
+
+namespace App\Models;
+
+use App\Core\Model;
+use DateTimeImmutable;
+use DateTimeZone;
+use PDO;
+use Throwable;
+
+class LaundryRepository extends Model
+{
+    private const STATUSES = ['Antrean', 'Diproses', 'Dicuci', 'Dikeringkan', 'Disetrika', 'Selesai', 'Diambil'];
+
+    private const STATUS_TONES = [
+        'Antrean' => 'blue',
+        'Diproses' => 'green',
+        'Dicuci' => 'teal',
+        'Dikeringkan' => 'cyan',
+        'Disetrika' => 'orange',
+        'Selesai' => 'purple',
+        'Diambil' => 'green',
+    ];
+
+    private const DEFAULT_SETTINGS = [
+        'admin_email' => 'admin@ghavalaundry.com',
+        'laundry_name' => 'Ghava Laundry',
+        'whatsapp' => '081242910340',
+        'address' => 'Jl. Poros Hartaco Indah, Kelurahan Sudiang Raya, Kecamatan Biringkanaya, Kota Makassar, Sulawesi Selatan 90242',
+        'open_time' => '07:00',
+        'close_time' => '21:00',
+        'message' => 'Halo {nama_pelanggan}, cucian Anda dengan nomor pesanan {kode_pesanan} sudah selesai. Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada Ghava Laundry!',
+        'browser_notification' => '1',
+        'message_notification' => '1',
+        'date_format' => 'DD MMMM YYYY',
+        'logout_confirmation' => '1',
+    ];
+
+    private function pdo(): PDO
+    {
+        return $this->db->connection();
+    }
+
+    public function findAdminByUsername(string $username): ?array
+    {
+        $statement = $this->pdo()->prepare('SELECT * FROM admin WHERE username = :username LIMIT 1');
+        $statement->execute(['username' => $username]);
+        $admin = $statement->fetch();
+
+        return is_array($admin) ? $admin : null;
+    }
+
+    public function findAdminById(int $id): ?array
+    {
+        $statement = $this->pdo()->prepare('SELECT * FROM admin WHERE id_admin = :id LIMIT 1');
+        $statement->execute(['id' => $id]);
+        $admin = $statement->fetch();
+
+        return is_array($admin) ? $admin : null;
+    }
+
+    public function upgradeAdminPassword(int $adminId, string $password): void
+    {
+        $statement = $this->pdo()->prepare('UPDATE admin SET password = :password WHERE id_admin = :id');
+        $statement->execute([
+            'id' => $adminId,
+            'password' => password_hash($password, PASSWORD_DEFAULT),
+        ]);
+    }
+
+    public function settings(): array
+    {
+        $settings = self::DEFAULT_SETTINGS;
+        $statement = $this->pdo()->query('SELECT setting_key, setting_value FROM pengaturan');
+
+        foreach ($statement->fetchAll() as $row) {
+            $settings[$row['setting_key']] = (string) $row['setting_value'];
+        }
+
+        return $settings;
+    }
+
+    public function saveSettings(array $payload, int $adminId): array
+    {
+        $admin = $this->findAdminById($adminId);
+        $username = trim((string) ($payload['username'] ?? ($admin['username'] ?? 'admin')));
+        $newPassword = (string) ($payload['new_password'] ?? '');
+
+        $settings = [
+            'admin_email' => trim((string) ($payload['email'] ?? '')),
+            'laundry_name' => trim((string) ($payload['laundry_name'] ?? '')),
+            'whatsapp' => trim((string) ($payload['whatsapp'] ?? '')),
+            'address' => trim((string) ($payload['address'] ?? '')),
+            'open_time' => trim((string) ($payload['open_time'] ?? '')),
+            'close_time' => trim((string) ($payload['close_time'] ?? '')),
+            'message' => trim((string) ($payload['message'] ?? '')),
+            'browser_notification' => isset($payload['browser_notification']) ? '1' : '0',
+            'message_notification' => isset($payload['message_notification']) ? '1' : '0',
+            'date_format' => trim((string) ($payload['date_format'] ?? 'DD MMMM YYYY')),
+            'logout_confirmation' => isset($payload['logout_confirmation']) ? '1' : '0',
+        ];
+
+        $settings = array_map(static fn (string $value): string => $value === '' ? '-' : $value, $settings);
+
+        $this->pdo()->beginTransaction();
+
+        try {
+            $statement = $this->pdo()->prepare(
+                'INSERT INTO pengaturan (setting_key, setting_value)
+                 VALUES (:setting_key, :setting_value)
+                 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+            );
+
+            foreach ($settings as $key => $value) {
+                $statement->execute([
+                    'setting_key' => $key,
+                    'setting_value' => $value,
+                ]);
+            }
+
+            if ($username !== '' && $admin !== null) {
+                if ($newPassword !== '') {
+                    $adminStatement = $this->pdo()->prepare(
+                        'UPDATE admin SET username = :username, password = :password WHERE id_admin = :id'
+                    );
+                    $adminStatement->execute([
+                        'id' => $adminId,
+                        'username' => $username,
+                        'password' => password_hash($newPassword, PASSWORD_DEFAULT),
+                    ]);
+                } else {
+                    $adminStatement = $this->pdo()->prepare('UPDATE admin SET username = :username WHERE id_admin = :id');
+                    $adminStatement->execute([
+                        'id' => $adminId,
+                        'username' => $username,
+                    ]);
+                }
+            }
+
+            $this->pdo()->commit();
+        } catch (Throwable $error) {
+            $this->pdo()->rollBack();
+            throw $error;
+        }
+
+        $this->recordActivity($adminId, 'pengaturan', 'Pengaturan diperbarui', 'Profil admin dan preferensi sistem disimpan.', 'pengaturan');
+
+        return $this->findAdminById($adminId) ?? $admin ?? [];
+    }
+
+    public function packages(): array
+    {
+        $statement = $this->pdo()->query(
+            'SELECT *
+             FROM paket_laundry
+             ORDER BY FIELD(kategori, "Kiloan", "Khusus"), id_paket'
+        );
+
+        return array_map(function (array $row): array {
+            $category = $row['kategori'] ?: 'Kiloan';
+
+            return [
+                'id' => (int) $row['id_paket'],
+                'name' => $row['nama_paket'],
+                'description' => $row['deskripsi'] ?: 'Layanan laundry tersedia',
+                'price' => $this->formatCurrency((float) $row['harga_per_kg']) . ($category === 'Kiloan' ? ' / kg' : ''),
+                'raw_price' => (float) $row['harga_per_kg'],
+                'duration' => ((int) $row['estimasi_hari']) . ' hari',
+                'category' => $category,
+                'tone' => $row['tone'] ?: 'blue',
+                'icon' => $row['ikon'] ?: '&#128085;',
+                'unit' => $row['unit_label'] ?: ($category === 'Kiloan' ? 'Minimal 3 kg' : 'Per item'),
+                'status' => $row['status_aktif'],
+            ];
+        }, $statement->fetchAll());
+    }
+
+    public function dashboardSummary(): array
+    {
+        $pdo = $this->pdo();
+
+        return [
+            'customers' => (int) $pdo->query('SELECT COUNT(*) FROM pelanggan')->fetchColumn(),
+            'orders' => (int) $pdo->query('SELECT COUNT(*) FROM transaksi')->fetchColumn(),
+            'revenue' => (float) $pdo->query('SELECT COALESCE(SUM(total_harga), 0) FROM transaksi')->fetchColumn(),
+            'completed' => (int) $pdo->query("SELECT COUNT(*) FROM transaksi WHERE status_cucian IN ('Selesai', 'Diambil')")->fetchColumn(),
+        ];
+    }
+
+    public function customerStats(): array
+    {
+        $pdo = $this->pdo();
+
+        return [
+            'total' => (int) $pdo->query('SELECT COUNT(*) FROM pelanggan')->fetchColumn(),
+            'month' => (int) $pdo->query('SELECT COUNT(*) FROM pelanggan WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())')->fetchColumn(),
+            'new' => (int) $pdo->query('SELECT COUNT(*) FROM pelanggan WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)')->fetchColumn(),
+            'active' => (int) $pdo->query("SELECT COUNT(DISTINCT id_pelanggan) FROM transaksi WHERE status_cucian NOT IN ('Selesai', 'Diambil')")->fetchColumn(),
+        ];
+    }
+
+    public function transactionStats(): array
+    {
+        $pdo = $this->pdo();
+
+        return [
+            'total' => (int) $pdo->query('SELECT COUNT(*) FROM transaksi')->fetchColumn(),
+            'today' => (int) $pdo->query('SELECT COUNT(*) FROM transaksi WHERE DATE(tanggal_masuk) = CURDATE()')->fetchColumn(),
+            'open' => (int) $pdo->query("SELECT COUNT(*) FROM transaksi WHERE status_cucian NOT IN ('Selesai', 'Diambil')")->fetchColumn(),
+            'completed' => (int) $pdo->query("SELECT COUNT(*) FROM transaksi WHERE status_cucian IN ('Selesai', 'Diambil')")->fetchColumn(),
+            'revenue' => (float) $pdo->query('SELECT COALESCE(SUM(total_harga), 0) FROM transaksi')->fetchColumn(),
+        ];
+    }
+
+    public function orderRows(int $limit = 10): array
+    {
+        $statement = $this->pdo()->prepare(
+            'SELECT
+                t.no_nota,
+                t.tanggal_masuk,
+                t.estimasi_selesai,
+                t.tanggal_selesai,
+                t.status_cucian,
+                t.total_harga,
+                t.catatan,
+                p.nama_pelanggan,
+                p.no_telp,
+                p.alamat,
+                GROUP_CONCAT(pl.nama_paket ORDER BY d.id_detail SEPARATOR ", ") AS layanan,
+                SUM(d.berat) AS total_berat,
+                MIN(d.satuan) AS satuan
+             FROM transaksi t
+             JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
+             LEFT JOIN detail_transaksi d ON d.no_nota = t.no_nota
+             LEFT JOIN paket_laundry pl ON pl.id_paket = d.id_paket
+             GROUP BY
+                t.no_nota, t.tanggal_masuk, t.estimasi_selesai, t.tanggal_selesai,
+                t.status_cucian, t.total_harga, t.catatan,
+                p.nama_pelanggan, p.no_telp, p.alamat
+             ORDER BY t.tanggal_masuk DESC, t.no_nota DESC
+             LIMIT :limit'
+        );
+        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->execute();
+
+        $rows = [];
+
+        foreach ($statement->fetchAll() as $index => $row) {
+            $rows[] = $this->presentOrderRow($row, $index + 1);
+        }
+
+        return $rows;
+    }
+
+    public function customerRows(int $limit = 10): array
+    {
+        $statement = $this->pdo()->prepare(
+            'SELECT
+                p.id_pelanggan,
+                p.nama_pelanggan,
+                p.no_telp,
+                p.alamat,
+                p.created_at,
+                COUNT(t.no_nota) AS transaksi_count,
+                SUM(CASE WHEN t.status_cucian NOT IN ("Selesai", "Diambil") THEN 1 ELSE 0 END) AS active_count,
+                MAX(t.tanggal_masuk) AS last_transaction
+             FROM pelanggan p
+             LEFT JOIN transaksi t ON t.id_pelanggan = p.id_pelanggan
+             GROUP BY p.id_pelanggan, p.nama_pelanggan, p.no_telp, p.alamat, p.created_at
+             ORDER BY p.created_at DESC
+             LIMIT :limit'
+        );
+        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->execute();
+
+        $customers = [];
+
+        foreach ($statement->fetchAll() as $index => $row) {
+            $customers[] = [
+                'no' => $index + 1,
+                'id' => 'PLG-' . str_pad((string) $row['id_pelanggan'], 4, '0', STR_PAD_LEFT),
+                'name' => $row['nama_pelanggan'],
+                'phone' => $row['no_telp'],
+                'address' => $row['alamat'] ?: '-',
+                'transactions' => (int) $row['transaksi_count'],
+                'active' => (int) $row['active_count'],
+                'last' => $row['last_transaction'] ? $this->formatDate($row['last_transaction']) : '-',
+            ];
+        }
+
+        return $customers;
+    }
+
+    public function statusSummary(): array
+    {
+        $statement = $this->pdo()->query(
+            'SELECT status_cucian, COUNT(*) AS total
+             FROM transaksi
+             GROUP BY status_cucian'
+        );
+
+        $counts = array_fill_keys(self::STATUSES, 0);
+        $total = 0;
+
+        foreach ($statement->fetchAll() as $row) {
+            $counts[$row['status_cucian']] = (int) $row['total'];
+            $total += (int) $row['total'];
+        }
+
+        $summary = [];
+
+        foreach ($counts as $status => $count) {
+            $summary[] = [
+                'label' => $status,
+                'value' => $count,
+                'percent' => $total > 0 ? number_format(($count / $total) * 100, 1, ',', '.') . '%' : '0%',
+                'tone' => self::STATUS_TONES[$status] ?? 'blue',
+            ];
+        }
+
+        return $summary;
+    }
+
+    public function serviceSummary(): array
+    {
+        $statement = $this->pdo()->query(
+            'SELECT pl.nama_paket, COUNT(d.id_detail) AS total
+             FROM paket_laundry pl
+             LEFT JOIN detail_transaksi d ON d.id_paket = pl.id_paket
+             GROUP BY pl.id_paket, pl.nama_paket
+             ORDER BY total DESC, pl.id_paket'
+        );
+
+        $rows = $statement->fetchAll();
+        $grandTotal = array_sum(array_map(static fn (array $row): int => (int) $row['total'], $rows));
+        $max = max(1, ...array_map(static fn (array $row): int => (int) $row['total'], $rows));
+
+        return array_map(static function (array $row) use ($grandTotal, $max): array {
+            $count = (int) $row['total'];
+
+            return [
+                'name' => $row['nama_paket'],
+                'count' => $count,
+                'percent' => $grandTotal > 0 ? number_format(($count / $grandTotal) * 100, 1, ',', '.') . '%' : '0%',
+                'width' => number_format(($count / $max) * 100, 1, '.', '') . '%',
+            ];
+        }, $rows);
+    }
+
+    public function statusOrders(int $limit = 10): array
+    {
+        $orders = [];
+        $history = $this->historyByNota();
+
+        foreach ($this->orderRows($limit) as $row) {
+            $steps = [];
+            $orderHistory = $history[$row['nota']] ?? [];
+
+            foreach (array_reverse($orderHistory) as $item) {
+                $steps[$item['status']] = [
+                    'date' => $this->formatDate($item['created_at']),
+                    'time' => $this->formatTime($item['created_at']),
+                ];
+            }
+
+            $orders[] = [
+                'key' => $row['nota'],
+                'nota' => $row['nota'],
+                'customer' => $row['name'],
+                'service' => $row['service'],
+                'currentStatus' => $row['status'],
+                'tone' => $row['tone'],
+                'in' => $row['in_long'],
+                'eta' => $row['eta_long'],
+                'steps' => $steps,
+                'history' => array_map(function (array $item): array {
+                    return [
+                        'status' => $item['status'],
+                        'tone' => self::STATUS_TONES[$item['status']] ?? 'blue',
+                        'detail' => $item['detail'],
+                        'staff' => $item['staff'],
+                        'time' => $this->formatDateTime($item['created_at']),
+                    ];
+                }, $orderHistory),
+            ];
+        }
+
+        return $orders;
+    }
+
+    public function createLaundry(array $payload, int $adminId): string
+    {
+        $customerName = trim((string) ($payload['customer_name'] ?? ''));
+        $phone = trim((string) ($payload['phone'] ?? ''));
+        $package = $this->findPackage((string) ($payload['service'] ?? ''));
+        $weight = max(0, (float) ($payload['weight'] ?? 0));
+        $unit = trim((string) ($payload['unit'] ?? 'kg')) ?: 'kg';
+        $status = $this->normalizeStatus((string) ($payload['initial_status'] ?? 'Antrean'));
+        $total = max(0, (float) ($payload['total'] ?? 0));
+        $notes = trim((string) ($payload['notes'] ?? ''));
+        $dateIn = $this->normalizeDate((string) ($payload['date_in'] ?? ''), true);
+        $eta = $this->normalizeDate((string) ($payload['eta'] ?? ''), false);
+
+        if ($customerName === '' || $phone === '' || $package === null || $weight <= 0 || $total <= 0) {
+            throw new \InvalidArgumentException('Data cucian belum lengkap.');
+        }
+
+        $nota = $this->generateNota();
+
+        $this->pdo()->beginTransaction();
+
+        try {
+            $customerId = $this->findOrCreateCustomer($customerName, $phone);
+
+            $transaction = $this->pdo()->prepare(
+                'INSERT INTO transaksi
+                    (no_nota, id_pelanggan, id_admin, tanggal_masuk, estimasi_selesai, status_cucian, total_harga, catatan)
+                 VALUES
+                    (:no_nota, :id_pelanggan, :id_admin, :tanggal_masuk, :estimasi_selesai, :status_cucian, :total_harga, :catatan)'
+            );
+            $transaction->execute([
+                'no_nota' => $nota,
+                'id_pelanggan' => $customerId,
+                'id_admin' => $adminId,
+                'tanggal_masuk' => $dateIn,
+                'estimasi_selesai' => $eta,
+                'status_cucian' => $status,
+                'total_harga' => $total,
+                'catatan' => $notes !== '' ? $notes : null,
+            ]);
+
+            $detail = $this->pdo()->prepare(
+                'INSERT INTO detail_transaksi (no_nota, id_paket, berat, subtotal, satuan)
+                 VALUES (:no_nota, :id_paket, :berat, :subtotal, :satuan)'
+            );
+            $detail->execute([
+                'no_nota' => $nota,
+                'id_paket' => $package['id_paket'],
+                'berat' => $weight,
+                'subtotal' => $total,
+                'satuan' => $unit,
+            ]);
+
+            $this->insertHistory($nota, $adminId, $status, 'Cucian baru diterima dan masuk sistem.');
+
+            $this->pdo()->commit();
+        } catch (Throwable $error) {
+            $this->pdo()->rollBack();
+            throw $error;
+        }
+
+        $this->recordActivity($adminId, 'cucian', 'Data cucian baru ditambahkan', $nota . ' - ' . $customerName, $nota);
+
+        return $nota;
+    }
+
+    public function updateStatus(string $nota, string $status, string $note, int $adminId): void
+    {
+        $status = $this->normalizeStatus($status);
+        $nota = trim($nota);
+        $note = trim($note);
+
+        $this->pdo()->beginTransaction();
+
+        try {
+            $statement = $this->pdo()->prepare(
+                'UPDATE transaksi
+                 SET status_cucian = :status,
+                     tanggal_selesai = CASE
+                         WHEN :status_done = 1 THEN COALESCE(tanggal_selesai, NOW())
+                         ELSE tanggal_selesai
+                     END
+                 WHERE no_nota = :nota'
+            );
+            $statement->execute([
+                'status' => $status,
+                'status_done' => in_array($status, ['Selesai', 'Diambil'], true) ? 1 : 0,
+                'nota' => $nota,
+            ]);
+
+            if ($statement->rowCount() === 0) {
+                throw new \InvalidArgumentException('Nomor nota tidak ditemukan.');
+            }
+
+            $this->insertHistory($nota, $adminId, $status, $note !== '' ? $note : 'Status cucian diperbarui menjadi ' . $status . '.');
+
+            $this->pdo()->commit();
+        } catch (Throwable $error) {
+            $this->pdo()->rollBack();
+            throw $error;
+        }
+
+        $this->recordActivity($adminId, 'status', 'Status cucian diperbarui', $nota . ' menjadi ' . $status, $nota);
+    }
+
+    public function trackingResult(string $nota): ?array
+    {
+        $statement = $this->pdo()->prepare(
+            'SELECT
+                t.no_nota,
+                t.tanggal_masuk,
+                t.estimasi_selesai,
+                t.status_cucian,
+                p.nama_pelanggan,
+                GROUP_CONCAT(pl.nama_paket ORDER BY d.id_detail SEPARATOR ", ") AS layanan
+             FROM transaksi t
+             JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
+             LEFT JOIN detail_transaksi d ON d.no_nota = t.no_nota
+             LEFT JOIN paket_laundry pl ON pl.id_paket = d.id_paket
+             WHERE t.no_nota = :nota
+             GROUP BY t.no_nota, t.tanggal_masuk, t.estimasi_selesai, t.status_cucian, p.nama_pelanggan
+             LIMIT 1'
+        );
+        $statement->execute(['nota' => $nota]);
+        $row = $statement->fetch();
+
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $history = $this->historyByNota($nota)[$nota] ?? [];
+        $steps = [];
+        $currentIndex = array_search($row['status_cucian'], self::STATUSES, true);
+
+        foreach (self::STATUSES as $index => $status) {
+            $historyItem = $this->firstHistoryForStatus($history, $status);
+            $state = '';
+
+            if ($historyItem !== null || ($currentIndex !== false && $index < $currentIndex)) {
+                $state = 'done';
+            }
+
+            if ($status === $row['status_cucian']) {
+                $state = 'current';
+            }
+
+            $steps[] = [
+                'label' => $status,
+                'time' => $historyItem ? $this->formatDateTime($historyItem['created_at']) : 'Menunggu proses',
+                'note' => $historyItem['detail'] ?? 'berikutnya.',
+                'state' => $state,
+            ];
+        }
+
+        return [
+            'nota' => $row['no_nota'],
+            'tanggal_masuk' => $this->formatDateTime($row['tanggal_masuk']),
+            'nama_pelanggan' => $row['nama_pelanggan'],
+            'estimasi_selesai' => $row['estimasi_selesai'] ? $this->formatDateTime($row['estimasi_selesai']) : '-',
+            'layanan' => $row['layanan'] ?: '-',
+            'status' => $row['status_cucian'],
+            'steps' => $steps,
+        ];
+    }
+
+    public function recordActivity(?int $adminId, string $type, string $title, ?string $detail = null, ?string $reference = null): void
+    {
+        try {
+            $statement = $this->pdo()->prepare(
+                'INSERT INTO aktivitas (id_admin, tipe, judul, detail, referensi, ip_address, user_agent)
+                 VALUES (:id_admin, :tipe, :judul, :detail, :referensi, :ip_address, :user_agent)'
+            );
+            $statement->execute([
+                'id_admin' => $adminId,
+                'tipe' => $type,
+                'judul' => $title,
+                'detail' => $detail,
+                'referensi' => $reference,
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+                'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? substr((string) $_SERVER['HTTP_USER_AGENT'], 0, 255) : null,
+            ]);
+        } catch (Throwable) {
+            // Activity logging must not block the main laundry workflow.
+        }
+    }
+
+    public function activities(int $limit = 5, ?array $types = null): array
+    {
+        $where = '';
+        $params = [];
+
+        if ($types !== null && $types !== []) {
+            $placeholders = [];
+            foreach ($types as $index => $type) {
+                $key = 'type_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $type;
+            }
+            $where = 'WHERE a.tipe IN (' . implode(',', $placeholders) . ')';
+        }
+
+        $statement = $this->pdo()->prepare(
+            'SELECT a.*, COALESCE(ad.nama_lengkap, "Sistem") AS admin_name
+             FROM aktivitas a
+             LEFT JOIN admin ad ON ad.id_admin = a.id_admin
+             ' . $where . '
+             ORDER BY a.created_at DESC
+             LIMIT :limit'
+        );
+
+        foreach ($params as $key => $value) {
+            $statement->bindValue(':' . $key, $value);
+        }
+        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->execute();
+
+        return array_map(function (array $row): array {
+            return [
+                'icon' => $this->activityIcon($row['tipe']),
+                'tone' => $this->activityTone($row['tipe']),
+                'title' => $row['judul'],
+                'detail' => $row['detail'] ?: ($row['admin_name'] ?? 'Sistem'),
+                'time' => $this->timeAgo($row['created_at']),
+                'name' => $row['admin_name'] ?? 'Sistem',
+            ];
+        }, $statement->fetchAll());
+    }
+
+    public function countOrders(): int
+    {
+        return (int) $this->pdo()->query('SELECT COUNT(*) FROM transaksi')->fetchColumn();
+    }
+
+    public function countCustomers(): int
+    {
+        return (int) $this->pdo()->query('SELECT COUNT(*) FROM pelanggan')->fetchColumn();
+    }
+
+    private function presentOrderRow(array $row, int $number): array
+    {
+        $weight = (float) ($row['total_berat'] ?? 0);
+        $unit = $row['satuan'] ?: 'kg';
+
+        return [
+            'no' => $number,
+            'nota' => $row['no_nota'],
+            'name' => $row['nama_pelanggan'],
+            'phone' => $row['no_telp'],
+            'service' => $row['layanan'] ?: '-',
+            'weight' => str_replace('.', ',', rtrim(rtrim(number_format($weight, 2, '.', ''), '0'), '.')) . ' ' . $unit,
+            'in' => $this->formatDate($row['tanggal_masuk']),
+            'in_long' => $this->formatDateTime($row['tanggal_masuk']),
+            'eta' => $row['estimasi_selesai'] ? $this->formatDate($row['estimasi_selesai']) : '-',
+            'eta_long' => $row['estimasi_selesai'] ? $this->formatDateTime($row['estimasi_selesai']) : '-',
+            'total' => $this->formatCurrency((float) $row['total_harga']),
+            'status' => $row['status_cucian'],
+            'tone' => self::STATUS_TONES[$row['status_cucian']] ?? 'blue',
+        ];
+    }
+
+    private function findOrCreateCustomer(string $name, string $phone): int
+    {
+        $statement = $this->pdo()->prepare('SELECT id_pelanggan FROM pelanggan WHERE no_telp = :phone LIMIT 1');
+        $statement->execute(['phone' => $phone]);
+        $customerId = $statement->fetchColumn();
+
+        if ($customerId) {
+            $update = $this->pdo()->prepare('UPDATE pelanggan SET nama_pelanggan = :name WHERE id_pelanggan = :id');
+            $update->execute(['id' => $customerId, 'name' => $name]);
+
+            return (int) $customerId;
+        }
+
+        $insert = $this->pdo()->prepare(
+            'INSERT INTO pelanggan (nama_pelanggan, no_telp, alamat, role)
+             VALUES (:name, :phone, NULL, "pelanggan")'
+        );
+        $insert->execute([
+            'name' => $name,
+            'phone' => $phone,
+        ]);
+
+        return (int) $this->pdo()->lastInsertId();
+    }
+
+    private function findPackage(string $value): ?array
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (ctype_digit($value)) {
+            $statement = $this->pdo()->prepare('SELECT * FROM paket_laundry WHERE id_paket = :value LIMIT 1');
+        } else {
+            $statement = $this->pdo()->prepare('SELECT * FROM paket_laundry WHERE nama_paket = :value LIMIT 1');
+        }
+
+        $statement->execute(['value' => $value]);
+        $package = $statement->fetch();
+
+        return is_array($package) ? $package : null;
+    }
+
+    private function generateNota(): string
+    {
+        $prefix = 'GL' . date('Ymd') . '-';
+        $statement = $this->pdo()->prepare('SELECT no_nota FROM transaksi WHERE no_nota LIKE :prefix ORDER BY no_nota DESC LIMIT 1');
+        $statement->execute(['prefix' => $prefix . '%']);
+        $latest = (string) ($statement->fetchColumn() ?: '');
+        $nextNumber = 1;
+
+        if ($latest !== '') {
+            $nextNumber = ((int) substr($latest, -3)) + 1;
+        }
+
+        return $prefix . str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function insertHistory(string $nota, int $adminId, string $status, string $detail): void
+    {
+        $statement = $this->pdo()->prepare(
+            'INSERT INTO riwayat_status (no_nota, id_admin, status_cucian, keterangan)
+             VALUES (:nota, :admin, :status, :detail)'
+        );
+        $statement->execute([
+            'nota' => $nota,
+            'admin' => $adminId,
+            'status' => $status,
+            'detail' => $detail,
+        ]);
+    }
+
+    private function historyByNota(?string $nota = null): array
+    {
+        $where = '';
+        $params = [];
+
+        if ($nota !== null) {
+            $where = 'WHERE r.no_nota = :nota';
+            $params['nota'] = $nota;
+        }
+
+        $statement = $this->pdo()->prepare(
+            'SELECT
+                r.no_nota,
+                r.status_cucian AS status,
+                r.keterangan AS detail,
+                r.waktu_update AS created_at,
+                COALESCE(a.nama_lengkap, "Admin Laundry") AS staff
+             FROM riwayat_status r
+             LEFT JOIN admin a ON a.id_admin = r.id_admin
+             ' . $where . '
+             ORDER BY r.waktu_update DESC, r.id_riwayat DESC'
+        );
+        $statement->execute($params);
+
+        $history = [];
+
+        foreach ($statement->fetchAll() as $row) {
+            $history[$row['no_nota']][] = $row;
+        }
+
+        return $history;
+    }
+
+    private function firstHistoryForStatus(array $history, string $status): ?array
+    {
+        foreach (array_reverse($history) as $item) {
+            if ($item['status'] === $status) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeStatus(string $status): string
+    {
+        return in_array($status, self::STATUSES, true) ? $status : 'Antrean';
+    }
+
+    private function normalizeDate(string $date, bool $startOfDay): string
+    {
+        if ($date === '') {
+            return date('Y-m-d H:i:s');
+        }
+
+        $time = $startOfDay ? ' 08:00:00' : ' 17:00:00';
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date . $time : date('Y-m-d H:i:s', strtotime($date));
+    }
+
+    private function formatCurrency(float $value): string
+    {
+        return 'Rp ' . number_format($value, 0, ',', '.');
+    }
+
+    private function formatDate(string $date): string
+    {
+        return $this->formatDateTimeParts($date, false);
+    }
+
+    private function formatDateTime(string $date): string
+    {
+        return $this->formatDateTimeParts($date, true);
+    }
+
+    private function formatTime(string $date): string
+    {
+        return (new DateTimeImmutable($date, new DateTimeZone('Asia/Makassar')))->format('H:i');
+    }
+
+    private function formatDateTimeParts(string $date, bool $withTime): string
+    {
+        $months = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
+        ];
+        $dt = new DateTimeImmutable($date, new DateTimeZone('Asia/Makassar'));
+        $value = $dt->format('j') . ' ' . $months[(int) $dt->format('n')] . ' ' . $dt->format('Y');
+
+        return $withTime ? $value . ', ' . $dt->format('H:i') : $value;
+    }
+
+    private function timeAgo(string $date): string
+    {
+        $created = new DateTimeImmutable($date, new DateTimeZone('Asia/Makassar'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Makassar'));
+        $seconds = max(0, $now->getTimestamp() - $created->getTimestamp());
+
+        if ($seconds < 60) {
+            return 'Baru saja';
+        }
+
+        if ($seconds < 3600) {
+            return floor($seconds / 60) . ' mnt lalu';
+        }
+
+        if ($seconds < 86400) {
+            return floor($seconds / 3600) . ' jam lalu';
+        }
+
+        return floor($seconds / 86400) . ' hari lalu';
+    }
+
+    private function activityIcon(string $type): string
+    {
+        return [
+            'cucian' => '+',
+            'status' => '&#10003;',
+            'login' => '&#128274;',
+            'logout' => '&#8617;',
+            'pengaturan' => '&#9881;',
+            'tracking' => '&#128269;',
+            'sistem' => '&#8505;',
+        ][$type] ?? '&#9672;';
+    }
+
+    private function activityTone(string $type): string
+    {
+        return [
+            'cucian' => 'blue',
+            'status' => 'green',
+            'login' => 'purple',
+            'logout' => 'orange',
+            'pengaturan' => 'blue',
+            'tracking' => 'teal',
+            'sistem' => 'blue',
+        ][$type] ?? 'blue';
+    }
+}

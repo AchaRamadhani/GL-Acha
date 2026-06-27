@@ -4,11 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($title ?? 'GL-Acha', ENT_QUOTES, 'UTF-8') ?></title>
-    <?php $styleVersion = @filemtime(__DIR__ . '/../../../public/assets/css/style.css') ?: time(); ?>
+    <?php
+    $styleVersion = @filemtime(__DIR__ . '/../../../public/assets/css/style.css') ?: time();
+    $scriptVersion = @filemtime(__DIR__ . '/../../../public/assets/js/app.js') ?: time();
+    ?>
     <link rel="stylesheet" href="<?= htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8') ?>/assets/css/style.css?v=<?= $styleVersion ?>">
 </head>
 <body>
     <?= $content ?? '' ?>
-    <script src="<?= htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8') ?>/assets/js/app.js"></script>
+    <script src="<?= htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8') ?>/assets/js/app.js?v=<?= $scriptVersion ?>"></script>
 </body>
 </html>

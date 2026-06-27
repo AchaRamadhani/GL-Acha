@@ -1,5 +1,8 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$admin = $admin ?? [];
+$adminName = (string) ($admin['name'] ?? 'Admin Laundry');
+$adminRole = (string) ($admin['role'] ?? 'Administrator');
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -11,7 +14,7 @@ $sidebarItems = [
     ['icon' => '&#9881;', 'label' => 'Pengaturan', 'href' => '/admin/pengaturan'],
 ];
 
-$packages = [
+$packages = $packages ?? [
     ['name' => 'Cuci Kering', 'description' => 'Pakaian dicuci dan dikeringkan', 'price' => 'Rp 45.000', 'duration' => '2 hari', 'category' => 'Kiloan', 'tone' => 'blue', 'icon' => '&#128085;', 'unit' => 'Minimal 3 kg'],
     ['name' => 'Cuci Lipat', 'description' => 'Pakaian dicuci dan dilipat rapi', 'price' => 'Rp 35.000', 'duration' => '1 hari', 'category' => 'Kiloan', 'tone' => 'green', 'icon' => '&#9636;', 'unit' => 'Minimal 3 kg'],
     ['name' => 'Cuci Setrika Lipat', 'description' => 'Pakaian dicuci, disetrika, dan dilipat', 'price' => 'Rp 40.000', 'duration' => '2 hari', 'category' => 'Kiloan', 'tone' => 'purple', 'icon' => '&#128239;', 'unit' => 'Minimal 3 kg'],
@@ -25,6 +28,9 @@ $packages = [
 
 $kiloanPackages = array_filter($packages, static fn ($package) => $package['category'] === 'Kiloan');
 $specialPackages = array_filter($packages, static fn ($package) => $package['category'] === 'Khusus');
+$packageTotal = max(1, count($packages));
+$kiloanPercent = count($kiloanPackages) / $packageTotal * 100;
+$specialPercent = count($specialPackages) / $packageTotal * 100;
 
 $stats = [
     ['tone' => 'blue', 'icon' => '&#128230;', 'label' => 'Total Paket', 'value' => count($packages) . ' Paket', 'meta' => 'Semua paket tersedia'],
@@ -34,8 +40,8 @@ $stats = [
 ];
 
 $categorySummary = [
-    ['label' => 'Layanan Kiloan', 'value' => count($kiloanPackages), 'percent' => '66,7%', 'width' => '66.7%', 'tone' => 'blue'],
-    ['label' => 'Layanan Khusus', 'value' => count($specialPackages), 'percent' => '33,3%', 'width' => '33.3%', 'tone' => 'purple'],
+    ['label' => 'Layanan Kiloan', 'value' => count($kiloanPackages), 'percent' => number_format($kiloanPercent, 1, ',', '.') . '%', 'width' => number_format($kiloanPercent, 1, '.', '') . '%', 'tone' => 'blue'],
+    ['label' => 'Layanan Khusus', 'value' => count($specialPackages), 'percent' => number_format($specialPercent, 1, ',', '.') . '%', 'width' => number_format($specialPercent, 1, '.', '') . '%', 'tone' => 'purple'],
 ];
 
 ob_start();
@@ -78,7 +84,7 @@ ob_start();
                 </button>
                 <div class="dashboard-user">
                     <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong>Admin Laundry</strong><small>Administrator</small></p>
+                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
                     <span aria-hidden="true">&#8964;</span>
                 </div>
             </div>
@@ -135,7 +141,7 @@ ob_start();
                                 <div class="package-card-body">
                                     <div class="package-title-row">
                                         <h2><?= htmlspecialchars($package['name'], ENT_QUOTES, 'UTF-8') ?></h2>
-                                        <span class="package-status">Aktif</span>
+                                        <span class="package-status"><?= htmlspecialchars($package['status'] ?? 'Aktif', ENT_QUOTES, 'UTF-8') ?></span>
                                     </div>
                                     <p><?= htmlspecialchars($package['description'], ENT_QUOTES, 'UTF-8') ?></p>
                                     <div class="package-meta-grid">
