@@ -1,5 +1,7 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
+$nextCustomerCodeSafe = htmlspecialchars($nextCustomerCode ?? 'Otomatis', ENT_QUOTES, 'UTF-8');
 $admin = $admin ?? [];
 $adminName = (string) ($admin['name'] ?? 'Admin Laundry');
 $adminRole = (string) ($admin['role'] ?? 'Administrator');
@@ -78,21 +80,7 @@ ob_start();
                 <span aria-hidden="true">&#9776;</span>
             </button>
 
-            <div class="dashboard-userbar">
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Notifikasi">
-                    <span aria-hidden="true">&#128276;</span>
-                    <i>3</i>
-                </button>
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Pesan">
-                    <span aria-hidden="true">&#128172;</span>
-                    <i>2</i>
-                </button>
-                <div class="dashboard-user">
-                    <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
-                    <span aria-hidden="true">&#8964;</span>
-                </div>
-            </div>
+            <?php require __DIR__ . '/partials/topbar-userbar.php'; ?>
         </header>
 
         <main class="dashboard-main laundry-main customer-main">
@@ -101,11 +89,18 @@ ob_start();
                     <h1>Pelanggan</h1>
                     <p>Kelola data pelanggan dan lihat riwayat aktivitas laundry mereka.</p>
                 </div>
-                <button class="add-laundry-button customer-add-button" type="button">
+                <button class="add-laundry-button customer-add-button" type="button" data-laundry-modal-open="customer">
                     <span aria-hidden="true">+</span>
                     Tambah Pelanggan
                 </button>
             </section>
+
+            <?php if (!empty($successMessage)): ?>
+                <div class="admin-flash success"><?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+            <?php if (!empty($errorMessage)): ?>
+                <div class="admin-flash error"><?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
 
             <section class="laundry-stat-grid customer-stat-grid" aria-label="Ringkasan pelanggan">
                 <?php foreach ($stats as $stat): ?>
@@ -243,6 +238,57 @@ ob_start();
                 </aside>
             </section>
         </main>
+
+        <div class="laundry-modal-backdrop customer-modal-backdrop" data-laundry-modal="customer" hidden>
+            <section class="laundry-dialog customer-dialog" role="dialog" aria-modal="true" aria-labelledby="customerModalTitle">
+                <button class="laundry-modal-close" type="button" aria-label="Tutup form tambah pelanggan" data-laundry-modal-close>&times;</button>
+
+                <header class="laundry-modal-header">
+                    <h2 id="customerModalTitle">Tambah Data Pelanggan</h2>
+                    <p>Masukkan data pelanggan dengan lengkap.</p>
+                </header>
+
+                <form class="laundry-modal-form customer-modal-form" action="<?= $safeBaseUrl ?>/admin/pelanggan" method="post" data-laundry-form>
+                    <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+
+                    <div class="laundry-modal-field customer-id-field">
+                        <label for="customerCode">ID Pelanggan</label>
+                        <input id="customerCode" type="text" value="<?= $nextCustomerCodeSafe ?>" readonly>
+                        <small>ID pelanggan dibuat otomatis</small>
+                    </div>
+
+                    <div class="laundry-modal-field customer-phone-field">
+                        <label for="customerPhone">No. Telepon <span>*</span></label>
+                        <input id="customerPhone" type="tel" name="phone" placeholder="0812-3456-7890" autocomplete="tel" required data-laundry-first-field>
+                    </div>
+
+                    <div class="laundry-modal-field customer-name-field">
+                        <label for="customerName">Nama Pelanggan <span>*</span></label>
+                        <input id="customerName" type="text" name="customer_name" placeholder="Masukkan nama pelanggan" autocomplete="name" required>
+                    </div>
+
+                    <div class="laundry-modal-field customer-address-field">
+                        <label for="customerAddress">Alamat</label>
+                        <textarea id="customerAddress" name="address" rows="4" placeholder="Masukkan alamat pelanggan"></textarea>
+                        <small>Alamat pelanggan (opsional)</small>
+                    </div>
+
+                    <div class="laundry-modal-actions">
+                        <button class="laundry-clear-button" type="button" data-laundry-form-reset>
+                            <span aria-hidden="true">&#8635;</span>
+                            Bersihkan
+                        </button>
+                        <div>
+                            <button class="laundry-cancel-button" type="button" data-laundry-modal-close>Batal</button>
+                            <button class="laundry-save-button" type="submit">
+                                <span aria-hidden="true">&#128190;</span>
+                                Simpan Data
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+        </div>
     </div>
 </div>
 <?php

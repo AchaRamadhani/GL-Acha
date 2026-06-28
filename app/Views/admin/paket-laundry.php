@@ -1,5 +1,7 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
+$nextPackageCodeSafe = htmlspecialchars($nextPackageCode ?? 'PKT-001', ENT_QUOTES, 'UTF-8');
 $admin = $admin ?? [];
 $adminName = (string) ($admin['name'] ?? 'Admin Laundry');
 $adminRole = (string) ($admin['role'] ?? 'Administrator');
@@ -73,21 +75,7 @@ ob_start();
                 <span aria-hidden="true">&#9776;</span>
             </button>
 
-            <div class="dashboard-userbar">
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Notifikasi">
-                    <span aria-hidden="true">&#128276;</span>
-                    <i>3</i>
-                </button>
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Pesan">
-                    <span aria-hidden="true">&#128172;</span>
-                    <i>2</i>
-                </button>
-                <div class="dashboard-user">
-                    <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
-                    <span aria-hidden="true">&#8964;</span>
-                </div>
-            </div>
+            <?php require __DIR__ . '/partials/topbar-userbar.php'; ?>
         </header>
 
         <main class="dashboard-main laundry-main package-main">
@@ -96,11 +84,18 @@ ob_start();
                     <h1>Paket Laundry</h1>
                     <p>Kelola daftar layanan dan paket laundry yang tersedia di Ghava Laundry.</p>
                 </div>
-                <button class="add-laundry-button package-add-button" type="button">
+                <button class="add-laundry-button package-add-button" type="button" data-laundry-modal-open="package">
                     <span aria-hidden="true">+</span>
                     Tambah Paket
                 </button>
             </section>
+
+            <?php if (!empty($successMessage)): ?>
+                <div class="admin-flash success"><?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
+            <?php if (!empty($errorMessage)): ?>
+                <div class="admin-flash error"><?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?></div>
+            <?php endif; ?>
 
             <div class="laundry-note package-note">
                 <span aria-hidden="true">&#8505;</span>
@@ -206,6 +201,103 @@ ob_start();
                 </aside>
             </section>
         </main>
+
+        <div class="laundry-modal-backdrop package-modal-backdrop" data-laundry-modal="package" hidden>
+            <section class="laundry-dialog package-dialog" role="dialog" aria-modal="true" aria-labelledby="packageModalTitle">
+                <button class="laundry-modal-close" type="button" aria-label="Tutup form tambah paket" data-laundry-modal-close>&times;</button>
+
+                <header class="laundry-modal-header">
+                    <h2 id="packageModalTitle">Tambah Paket Laundry</h2>
+                    <p>Masukkan data paket laundry dengan lengkap.</p>
+                </header>
+
+                <form class="laundry-modal-form package-modal-form" action="<?= $safeBaseUrl ?>/admin/paket-laundry" method="post" data-laundry-form>
+                    <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+
+                    <div class="laundry-modal-field package-code-field">
+                        <label for="packageCode">ID Paket</label>
+                        <input id="packageCode" type="text" value="<?= $nextPackageCodeSafe ?>" readonly>
+                        <small>ID paket dibuat otomatis</small>
+                    </div>
+
+                    <div class="laundry-modal-field package-name-field">
+                        <label for="packageName">Nama Paket <span>*</span></label>
+                        <input id="packageName" type="text" name="package_name" placeholder="Contoh: Cuci Kering Premium" autocomplete="off" required data-laundry-first-field>
+                    </div>
+
+                    <div class="laundry-modal-field package-category-field">
+                        <label for="packageCategory">Kategori Paket <span>*</span></label>
+                        <select id="packageCategory" name="category" required>
+                            <option value="">Pilih kategori paket</option>
+                            <option value="Kiloan">Layanan Kiloan</option>
+                            <option value="Khusus">Layanan Khusus</option>
+                        </select>
+                    </div>
+
+                    <div class="laundry-modal-field package-price-field">
+                        <label for="packagePrice">Harga Mulai <span>*</span></label>
+                        <div class="laundry-price-input package-price-input">
+                            <span>Rp</span>
+                            <input id="packagePrice" type="number" name="price" min="0" step="500" placeholder="Contoh: 15000" required>
+                        </div>
+                    </div>
+
+                    <div class="laundry-modal-field package-unit-field">
+                        <label for="packageUnit">Satuan Harga <span>*</span></label>
+                        <select id="packageUnit" name="unit_label" required>
+                            <option value="">Pilih satuan harga</option>
+                            <option value="Minimal 3 kg">Per kg (minimal 3 kg)</option>
+                            <option value="Per item">Per item</option>
+                            <option value="Per pcs">Per pcs</option>
+                            <option value="Layanan cepat">Layanan cepat</option>
+                            <option value="Perawatan khusus">Perawatan khusus</option>
+                        </select>
+                    </div>
+
+                    <div class="laundry-modal-field package-duration-field">
+                        <label for="packageDuration">Durasi <span>*</span></label>
+                        <select id="packageDuration" name="duration" required>
+                            <option value="">Contoh: 2 hari</option>
+                            <option value="1">1 hari</option>
+                            <option value="2">2 hari</option>
+                            <option value="3">3 hari</option>
+                            <option value="4">4 hari</option>
+                        </select>
+                    </div>
+
+                    <div class="laundry-modal-field package-status-field">
+                        <label for="packageStatus">Status Paket <span>*</span></label>
+                        <select id="packageStatus" name="status" required>
+                            <option value="Aktif">Aktif</option>
+                            <option value="Nonaktif">Nonaktif</option>
+                        </select>
+                    </div>
+
+                    <div class="laundry-modal-field package-description-field">
+                        <label for="packageDescription">Deskripsi Paket</label>
+                        <textarea id="packageDescription" name="description" rows="4" maxlength="200" placeholder="Contoh: Paket ini mencakup pencucian, pengeringan, dan pewangian untuk hasil yang bersih dan wangi." data-character-counter-source="packageDescriptionCount"></textarea>
+                        <small><span>Deskripsi paket (opsional)</span><span data-character-counter="packageDescriptionCount">0 / 200</span></small>
+                    </div>
+
+                    <div class="laundry-modal-actions">
+                        <button class="laundry-clear-button" type="button" data-laundry-form-reset>
+                            <span aria-hidden="true">&#9003;</span>
+                            Bersihkan
+                        </button>
+                        <div>
+                            <button class="laundry-cancel-button" type="button" data-laundry-modal-close>
+                                <span aria-hidden="true">&times;</span>
+                                Batal
+                            </button>
+                            <button class="laundry-save-button" type="submit">
+                                <span aria-hidden="true">&#128190;</span>
+                                Simpan Paket
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+        </div>
     </div>
 </div>
 <?php

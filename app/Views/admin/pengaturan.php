@@ -47,21 +47,7 @@ ob_start();
                 <span aria-hidden="true">&#9776;</span>
             </button>
 
-            <div class="dashboard-userbar">
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Notifikasi">
-                    <span aria-hidden="true">&#128276;</span>
-                    <i>3</i>
-                </button>
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Pesan">
-                    <span aria-hidden="true">&#128172;</span>
-                    <i>2</i>
-                </button>
-                <div class="dashboard-user">
-                    <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
-                    <span aria-hidden="true">&#8964;</span>
-                </div>
-            </div>
+            <?php require __DIR__ . '/partials/topbar-userbar.php'; ?>
         </header>
 
         <main class="dashboard-main laundry-main settings-main">

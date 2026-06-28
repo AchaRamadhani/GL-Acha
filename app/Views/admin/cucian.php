@@ -54,6 +54,44 @@ $activities = $activities ?? [
     ['icon' => '&#128465;', 'tone' => 'red', 'title' => 'Data cucian dihapus', 'detail' => 'INV-250517-008 - Dedi Kurniawan', 'time' => '08:10'],
 ];
 $packages = $packages ?? [];
+$serviceOptions = $serviceOptions ?? [];
+
+if ($serviceOptions === [] && $packages !== []) {
+    $serviceOptions = array_map(static function (array $package): array {
+        $name = (string) ($package['name'] ?? '');
+        $category = (string) ($package['category'] ?? '');
+        $unit = (string) ($package['unit'] ?? '');
+        $meta = array_filter([$category !== '' ? 'Layanan ' . $category : '', $unit]);
+
+        return [
+            'id' => (string) ($package['id'] ?? $name),
+            'name' => $name,
+            'label' => $name . ($meta !== [] ? ' (' . implode(' - ', $meta) . ')' : ''),
+        ];
+    }, $packages);
+}
+
+if ($serviceOptions === []) {
+    $serviceOptions = array_map(static fn (string $name): array => [
+        'id' => $name,
+        'name' => $name,
+        'label' => $name,
+    ], ['Cuci Kering', 'Cuci Lipat', 'Cuci Setrika Lipat', 'Setrika Saja', 'Pengering & Lipat', 'Baju Bayi', 'Satuan', 'Express', 'Treatment']);
+}
+
+$statusOptions = $statusOptions ?? ['Antrean', 'Diproses', 'Dicuci', 'Dikeringkan', 'Disetrika', 'Selesai', 'Diambil'];
+$filters = array_merge([
+    'search' => '',
+    'status' => '',
+    'service' => '',
+    'date_from' => '',
+    'date_to' => '',
+], is_array($filters ?? null) ? $filters : []);
+$filterSearchSafe = htmlspecialchars((string) $filters['search'], ENT_QUOTES, 'UTF-8');
+$filterStatus = (string) $filters['status'];
+$filterService = (string) $filters['service'];
+$filterDateFromSafe = htmlspecialchars((string) $filters['date_from'], ENT_QUOTES, 'UTF-8');
+$filterDateToSafe = htmlspecialchars((string) $filters['date_to'], ENT_QUOTES, 'UTF-8');
 $totalRows = $totalRows ?? count($laundryRows);
 
 ob_start();
@@ -90,21 +128,7 @@ ob_start();
                 <input id="laundryTopSearch" type="search" placeholder="Cari pelanggan, nota, atau layanan..." autocomplete="off">
             </label>
 
-            <div class="dashboard-userbar">
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Notifikasi">
-                    <span aria-hidden="true">&#128276;</span>
-                    <i>3</i>
-                </button>
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Pesan">
-                    <span aria-hidden="true">&#128172;</span>
-                    <i>2</i>
-                </button>
-                <div class="dashboard-user">
-                    <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
-                    <span aria-hidden="true">&#8964;</span>
-                </div>
-            </div>
+            <?php require __DIR__ . '/partials/topbar-userbar.php'; ?>
         </header>
 
         <main class="dashboard-main laundry-main">
@@ -146,30 +170,46 @@ ob_start();
 
             <section class="laundry-workspace">
                 <div class="laundry-data-panel">
-                    <form class="laundry-filter-bar" action="#" method="get">
+                    <form class="laundry-filter-bar" action="<?= $safeBaseUrl ?>/admin/cucian" method="get">
                         <label class="laundry-search-field" for="laundrySearch">
                             <span aria-hidden="true">&#128269;</span>
-                            <input id="laundrySearch" type="search" placeholder="Cari no nota atau nama pelanggan..." autocomplete="off">
+                            <input id="laundrySearch" name="q" type="search" placeholder="Cari no nota atau nama pelanggan..." value="<?= $filterSearchSafe ?>" autocomplete="off">
                         </label>
-                        <select aria-label="Filter status">
-                            <option>Semua Status</option>
+                        <select name="status" aria-label="Filter status">
+                            <option value="">Semua Status</option>
+                            <?php foreach ($statusOptions as $statusOption): ?>
+                                <option value="<?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>" <?= $filterStatus === $statusOption ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
-                        <select aria-label="Filter layanan">
-                            <option>Semua Layanan</option>
-                        </select>
-                        <button class="date-filter" type="button">
+                        <label class="service-select-shell" aria-label="Filter layanan">
+                            <span class="service-select-icon" aria-hidden="true">&#9672;</span>
+                            <select class="service-type-select" name="service" aria-label="Filter layanan" data-service-type-select>
+                                <option value="">Semua Layanan</option>
+                                <?php foreach ($serviceOptions as $option): ?>
+                                    <?php $serviceName = (string) ($option['name'] ?? ''); ?>
+                                    <option value="<?= htmlspecialchars($serviceName, ENT_QUOTES, 'UTF-8') ?>" <?= $filterService === $serviceName ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars((string) ($option['label'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <span class="service-select-chevron" aria-hidden="true">&#8964;</span>
+                        </label>
+                        <div class="date-filter date-filter-range" aria-label="Filter tanggal masuk">
                             <span aria-hidden="true">&#128197;</span>
-                            21 Mei 2026 - 21 Mei 2026
-                            <span aria-hidden="true">&#8964;</span>
-                        </button>
-                        <button class="filter-primary" type="button">
+                            <input id="laundryDateFrom" name="date_from" type="date" value="<?= $filterDateFromSafe ?>" aria-label="Tanggal mulai">
+                            <span class="date-filter-separator" aria-hidden="true">-</span>
+                            <input id="laundryDateTo" name="date_to" type="date" value="<?= $filterDateToSafe ?>" aria-label="Tanggal akhir">
+                        </div>
+                        <button class="filter-primary" type="submit">
                             <span aria-hidden="true">&#9661;</span>
                             Filter
                         </button>
-                        <button class="filter-reset" type="button">
+                        <a class="filter-reset" href="<?= $safeBaseUrl ?>/admin/cucian">
                             <span aria-hidden="true">&#8635;</span>
                             Reset Filter
-                        </button>
+                        </a>
                     </form>
 
                     <div class="laundry-table-wrap">
@@ -190,6 +230,11 @@ ob_start();
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php if ($laundryRows === []): ?>
+                                    <tr>
+                                        <td class="laundry-empty-row" colspan="11">Data cucian tidak ditemukan. Coba ubah atau reset filter.</td>
+                                    </tr>
+                                <?php endif; ?>
                                 <?php foreach ($laundryRows as $row): ?>
                                     <tr>
                                         <td><?= $row['no'] ?></td>
@@ -295,12 +340,18 @@ ob_start();
 
                     <div class="laundry-modal-field">
                         <label for="laundryService">Jenis Layanan <span>*</span></label>
-                        <select id="laundryService" name="service" required>
-                            <option value="">Pilih jenis layanan</option>
-                            <?php foreach ($packages as $package): ?>
-                                <option value="<?= (int) ($package['id'] ?? 0) ?>"><?= htmlspecialchars($package['name'], ENT_QUOTES, 'UTF-8') ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <span class="service-select-shell service-select-shell-large">
+                            <span class="service-select-icon" aria-hidden="true">&#9672;</span>
+                            <select id="laundryService" class="service-type-select" name="service" required data-service-type-select>
+                                <option value="">Pilih jenis layanan</option>
+                                <?php foreach ($serviceOptions as $option): ?>
+                                    <option value="<?= htmlspecialchars((string) ($option['id'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars((string) ($option['label'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <span class="service-select-chevron" aria-hidden="true">&#8964;</span>
+                        </span>
                     </div>
 
                     <div class="laundry-modal-field">

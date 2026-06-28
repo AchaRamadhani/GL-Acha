@@ -153,72 +153,356 @@ if (dashboardMenuToggle && dashboardSidebar) {
     });
 }
 
-const laundryModalOpenButton = document.querySelector('[data-laundry-modal-open]');
-const laundryModal = document.querySelector('[data-laundry-modal]');
+const dashboardPopoverTriggers = Array.from(document.querySelectorAll('[data-dashboard-popover-trigger]'));
+const dashboardPopovers = Array.from(document.querySelectorAll('[data-dashboard-popover]'));
 
-if (laundryModalOpenButton && laundryModal) {
-    const laundryForm = laundryModal.querySelector('[data-laundry-form]');
-    const laundryCloseButtons = laundryModal.querySelectorAll('[data-laundry-modal-close]');
-    const laundryResetButton = laundryModal.querySelector('[data-laundry-form-reset]');
-    const laundryDateInputs = laundryModal.querySelectorAll('[data-laundry-date-input]');
-    const firstLaundryField = laundryModal.querySelector('#laundryCustomerName');
-    let previousLaundryFocus = null;
+if (dashboardPopoverTriggers.length && dashboardPopovers.length) {
+    let activeDashboardPopover = null;
+    let activeDashboardPopoverTrigger = null;
 
-    const closeLaundryModal = () => {
-        laundryModal.hidden = true;
-        document.body.classList.remove('laundry-modal-open');
+    const findDashboardPopover = (name) => dashboardPopovers.find((popover) => popover.dataset.dashboardPopover === name);
 
-        if (previousLaundryFocus) {
-            previousLaundryFocus.focus();
+    const syncDashboardPopoverArrow = () => {
+        if (!activeDashboardPopover || !activeDashboardPopoverTrigger || activeDashboardPopover.hidden) {
+            return;
+        }
+
+        const popoverRect = activeDashboardPopover.getBoundingClientRect();
+        const triggerRect = activeDashboardPopoverTrigger.getBoundingClientRect();
+        const triggerCenter = triggerRect.left + (triggerRect.width / 2);
+        const arrowLeft = Math.max(24, Math.min(popoverRect.width - 24, triggerCenter - popoverRect.left));
+
+        activeDashboardPopover.style.setProperty('--dashboard-popover-arrow-left', `${Math.round(arrowLeft)}px`);
+    };
+
+    const closeDashboardPopovers = (restoreFocus = false) => {
+        const triggerToFocus = activeDashboardPopoverTrigger;
+
+        dashboardPopovers.forEach((popover) => {
+            popover.hidden = true;
+        });
+
+        dashboardPopoverTriggers.forEach((trigger) => {
+            trigger.classList.remove('is-open');
+            trigger.setAttribute('aria-expanded', 'false');
+        });
+
+        activeDashboardPopover = null;
+        activeDashboardPopoverTrigger = null;
+
+        if (restoreFocus) {
+            triggerToFocus?.focus();
         }
     };
 
-    const openLaundryModal = () => {
-        previousLaundryFocus = document.activeElement;
-        laundryModal.hidden = false;
-        document.body.classList.add('laundry-modal-open');
-        window.requestAnimationFrame(() => firstLaundryField?.focus());
+    const openDashboardPopover = (trigger) => {
+        const popover = findDashboardPopover(trigger.dataset.dashboardPopoverTrigger);
+
+        if (!popover) {
+            return;
+        }
+
+        if (activeDashboardPopover === popover && !popover.hidden) {
+            closeDashboardPopovers();
+            return;
+        }
+
+        closeDashboardPopovers();
+        activeDashboardPopover = popover;
+        activeDashboardPopoverTrigger = trigger;
+        popover.hidden = false;
+        trigger.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
+        window.requestAnimationFrame(syncDashboardPopoverArrow);
     };
 
-    laundryModalOpenButton.addEventListener('click', openLaundryModal);
-
-    laundryCloseButtons.forEach((button) => {
-        button.addEventListener('click', closeLaundryModal);
+    dashboardPopoverTriggers.forEach((trigger) => {
+        trigger.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openDashboardPopover(trigger);
+        });
     });
 
-    laundryResetButton?.addEventListener('click', () => {
-        laundryForm?.reset();
-        laundryDateInputs.forEach((input) => {
-            input.type = 'text';
+    document.querySelector('[data-dashboard-mark-read]')?.addEventListener('click', () => {
+        document.querySelectorAll('.dashboard-notification-popover .is-unread').forEach((item) => {
+            item.classList.remove('is-unread');
         });
-        firstLaundryField?.focus();
+
+        document.querySelectorAll('.dashboard-notification-popover .dashboard-popover-dot').forEach((dot) => {
+            dot.hidden = true;
+        });
+
+        const notificationTrigger = dashboardPopoverTriggers.find((trigger) => trigger.dataset.dashboardPopoverTrigger === 'notifications');
+        const notificationBadge = notificationTrigger?.querySelector('i');
+
+        if (notificationBadge) {
+            notificationBadge.hidden = true;
+        }
     });
 
-    laundryDateInputs.forEach((input) => {
-        input.addEventListener('focus', () => {
-            input.type = 'date';
+    document.addEventListener('click', (event) => {
+        if (
+            event.target.closest('[data-dashboard-popover]')
+            || event.target.closest('[data-dashboard-popover-trigger]')
+        ) {
+            return;
+        }
+
+        closeDashboardPopovers();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && activeDashboardPopover) {
+            closeDashboardPopovers(true);
+        }
+    });
+
+    window.addEventListener('resize', syncDashboardPopoverArrow);
+    window.addEventListener('scroll', syncDashboardPopoverArrow, true);
+}
+
+const dashboardPeriodSelect = document.querySelector('[data-dashboard-period-select]');
+
+if (dashboardPeriodSelect) {
+    dashboardPeriodSelect.addEventListener('change', () => {
+        dashboardPeriodSelect.form?.submit();
+    });
+}
+
+document.querySelectorAll('[data-dashboard-period-form]').forEach((periodForm) => {
+    const periodToggle = periodForm.querySelector('[data-dashboard-period-toggle]');
+    const periodMenu = periodForm.querySelector('[data-dashboard-period-menu]');
+    const periodInput = periodForm.querySelector('[data-dashboard-period-input]');
+    const periodOptions = Array.from(periodForm.querySelectorAll('[data-dashboard-period-option]'));
+
+    if (!periodToggle || !periodMenu || !periodOptions.length) {
+        return;
+    }
+
+    let activePeriodIndex = Math.max(0, periodOptions.findIndex((option) => option.getAttribute('aria-selected') === 'true'));
+
+    const closePeriodMenu = (restoreFocus = false) => {
+        periodMenu.hidden = true;
+        periodForm.classList.remove('is-open');
+        periodToggle.setAttribute('aria-expanded', 'false');
+
+        if (restoreFocus) {
+            periodToggle.focus();
+        }
+    };
+
+    const focusPeriodOption = (index) => {
+        activePeriodIndex = (index + periodOptions.length) % periodOptions.length;
+        periodOptions[activePeriodIndex].focus();
+    };
+
+    const openPeriodMenu = (focusIndex = activePeriodIndex) => {
+        periodMenu.hidden = false;
+        periodForm.classList.add('is-open');
+        periodToggle.setAttribute('aria-expanded', 'true');
+        window.requestAnimationFrame(() => focusPeriodOption(focusIndex));
+    };
+
+    periodToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        if (periodMenu.hidden) {
+            openPeriodMenu();
+            return;
+        }
+
+        closePeriodMenu();
+    });
+
+    periodOptions.forEach((option, index) => {
+        option.addEventListener('focus', () => {
+            activePeriodIndex = index;
         });
 
-        input.addEventListener('blur', () => {
-            if (!input.value) {
-                input.type = 'text';
+        option.addEventListener('click', () => {
+            if (periodInput) {
+                periodInput.value = option.value;
             }
         });
     });
 
-    laundryForm?.addEventListener('submit', () => {
-        closeLaundryModal();
-    });
+    periodForm.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' && periodMenu.hidden) {
+            event.preventDefault();
+            openPeriodMenu();
+            return;
+        }
 
-    laundryModal.addEventListener('click', (event) => {
-        if (event.target === laundryModal) {
-            closeLaundryModal();
+        if (event.key === 'ArrowUp' && periodMenu.hidden) {
+            event.preventDefault();
+            openPeriodMenu(periodOptions.length - 1);
+            return;
+        }
+
+        if (periodMenu.hidden) {
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closePeriodMenu(true);
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            focusPeriodOption(activePeriodIndex + 1);
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            focusPeriodOption(activePeriodIndex - 1);
+            return;
+        }
+
+        if (event.key === 'Home') {
+            event.preventDefault();
+            focusPeriodOption(0);
+            return;
+        }
+
+        if (event.key === 'End') {
+            event.preventDefault();
+            focusPeriodOption(periodOptions.length - 1);
         }
     });
 
+    document.addEventListener('click', (event) => {
+        if (!periodForm.contains(event.target)) {
+            closePeriodMenu();
+        }
+    });
+});
+
+const laundryModalOpenButtons = Array.from(document.querySelectorAll('[data-laundry-modal-open]'));
+const laundryModals = Array.from(document.querySelectorAll('[data-laundry-modal]'));
+
+if (laundryModalOpenButtons.length && laundryModals.length) {
+    const previousLaundryFocus = new WeakMap();
+
+    const updateCharacterCounter = (source) => {
+        const key = source.dataset.characterCounterSource;
+
+        if (!key) {
+            return;
+        }
+
+        const maxLength = source.getAttribute('maxlength') || source.dataset.characterCounterMax || '200';
+
+        document.querySelectorAll('[data-character-counter]').forEach((counter) => {
+            if (counter.dataset.characterCounter === key) {
+                counter.textContent = `${source.value.length} / ${maxLength}`;
+            }
+        });
+    };
+
+    const updateCharacterCounters = (root = document) => {
+        root.querySelectorAll('[data-character-counter-source]').forEach(updateCharacterCounter);
+    };
+
+    const findLaundryModal = (target) => {
+        if (!target) {
+            return laundryModals[0];
+        }
+
+        return laundryModals.find((modal) => modal.dataset.laundryModal === target) || laundryModals[0];
+    };
+
+    const findFirstLaundryField = (modal) => modal.querySelector(
+        '[data-laundry-first-field], input:not([type="hidden"]):not([readonly]), select, textarea'
+    );
+
+    const closeLaundryModal = (modal) => {
+        modal.hidden = true;
+
+        if (!laundryModals.some((item) => !item.hidden)) {
+            document.body.classList.remove('laundry-modal-open');
+        }
+
+        const previousFocus = previousLaundryFocus.get(modal);
+
+        if (previousFocus) {
+            previousFocus.focus();
+        }
+    };
+
+    const openLaundryModal = (modal) => {
+        previousLaundryFocus.set(modal, document.activeElement);
+        modal.hidden = false;
+        document.body.classList.add('laundry-modal-open');
+        window.requestAnimationFrame(() => findFirstLaundryField(modal)?.focus());
+    };
+
+    laundryModalOpenButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            openLaundryModal(findLaundryModal(button.dataset.laundryModalOpen));
+        });
+    });
+
+    laundryModals.forEach((modal) => {
+        const laundryForm = modal.querySelector('[data-laundry-form]');
+        const laundryCloseButtons = modal.querySelectorAll('[data-laundry-modal-close]');
+        const laundryResetButton = modal.querySelector('[data-laundry-form-reset]');
+        const laundryDateInputs = modal.querySelectorAll('[data-laundry-date-input]');
+
+        laundryCloseButtons.forEach((button) => {
+            button.addEventListener('click', () => closeLaundryModal(modal));
+        });
+
+        laundryResetButton?.addEventListener('click', () => {
+            laundryForm?.reset();
+            laundryDateInputs.forEach((input) => {
+                input.type = 'text';
+            });
+            window.requestAnimationFrame(() => {
+                updateCharacterCounters(modal);
+                findFirstLaundryField(modal)?.focus();
+            });
+        });
+
+        modal.querySelectorAll('[data-character-counter-source]').forEach((source) => {
+            source.addEventListener('input', () => updateCharacterCounter(source));
+            updateCharacterCounter(source);
+        });
+
+        laundryDateInputs.forEach((input) => {
+            input.addEventListener('focus', () => {
+                input.type = 'date';
+            });
+
+            input.addEventListener('blur', () => {
+                if (!input.value) {
+                    input.type = 'text';
+                }
+            });
+        });
+
+        laundryForm?.addEventListener('submit', () => {
+            closeLaundryModal(modal);
+        });
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeLaundryModal(modal);
+            }
+        });
+    });
+
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !laundryModal.hidden) {
-            closeLaundryModal();
+        if (event.key !== 'Escape') {
+            return;
+        }
+
+        const openModal = laundryModals.find((modal) => !modal.hidden);
+
+        if (openModal) {
+            closeLaundryModal(openModal);
         }
     });
 }

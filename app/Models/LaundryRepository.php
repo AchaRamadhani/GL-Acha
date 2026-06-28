@@ -175,15 +175,74 @@ class LaundryRepository extends Model
         }, $statement->fetchAll());
     }
 
-    public function dashboardSummary(): array
+    public function nextPackageCode(): string
     {
-        $pdo = $this->pdo();
+        $nextId = (int) $this->pdo()->query('SELECT COALESCE(MAX(id_paket), 0) + 1 FROM paket_laundry')->fetchColumn();
+
+        return $this->formatPackageCode($nextId);
+    }
+
+    public function dashboardSummary(?array $range = null): array
+    {
+        [$customerCondition, $customerParams] = $this->dateRangeCondition('created_at', $range, 'summary_customer');
+        [$transactionCondition, $transactionParams] = $this->dateRangeCondition('tanggal_masuk', $range, 'summary_transaction');
+        $customerWhere = $this->whereClause([$customerCondition]);
+        $transactionWhere = $this->whereClause([$transactionCondition]);
+        $completedWhere = $this->whereClause([
+            "status_cucian IN ('Selesai', 'Diambil')",
+            $transactionCondition,
+        ]);
 
         return [
-            'customers' => (int) $pdo->query('SELECT COUNT(*) FROM pelanggan')->fetchColumn(),
-            'orders' => (int) $pdo->query('SELECT COUNT(*) FROM transaksi')->fetchColumn(),
-            'revenue' => (float) $pdo->query('SELECT COALESCE(SUM(total_harga), 0) FROM transaksi')->fetchColumn(),
-            'completed' => (int) $pdo->query("SELECT COUNT(*) FROM transaksi WHERE status_cucian IN ('Selesai', 'Diambil')")->fetchColumn(),
+            'customers' => (int) $this->scalar('SELECT COUNT(*) FROM pelanggan' . $customerWhere, $customerParams),
+            'orders' => (int) $this->scalar('SELECT COUNT(*) FROM transaksi' . $transactionWhere, $transactionParams),
+            'revenue' => (float) $this->scalar('SELECT COALESCE(SUM(total_harga), 0) FROM transaksi' . $transactionWhere, $transactionParams),
+            'completed' => (int) $this->scalar('SELECT COUNT(*) FROM transaksi' . $completedWhere, $transactionParams),
+        ];
+    }
+
+    public function revenueSummary(?array $range = null): array
+    {
+        [$dateCondition, $params] = $this->dateRangeCondition('tanggal_masuk', $range, 'revenue');
+        $where = $this->whereClause([$dateCondition]);
+        $total = (float) $this->scalar('SELECT COALESCE(SUM(total_harga), 0) FROM transaksi' . $where, $params);
+
+        $statement = $this->pdo()->prepare(
+            'SELECT DATE(tanggal_masuk) AS revenue_date, COALESCE(SUM(total_harga), 0) AS total
+             FROM transaksi
+             ' . $where . '
+             GROUP BY DATE(tanggal_masuk)
+             ORDER BY revenue_date'
+        );
+        $this->bindStatementParams($statement, $params);
+        $statement->execute();
+
+        $daily = [];
+        $peak = 0.0;
+        $peakDate = null;
+
+        foreach ($statement->fetchAll() as $row) {
+            $value = (float) $row['total'];
+            $daily[] = [
+                'date' => $row['revenue_date'],
+                'value' => $value,
+            ];
+
+            if ($value > $peak) {
+                $peak = $value;
+                $peakDate = $row['revenue_date'];
+            }
+        }
+
+        $days = $this->daysInRange($range);
+
+        return [
+            'total' => $total,
+            'average' => $days > 0 ? $total / $days : 0,
+            'peak' => $peak,
+            'peak_date' => $peakDate,
+            'max' => max($peak, 1),
+            'daily' => $daily,
         ];
     }
 
@@ -212,8 +271,13 @@ class LaundryRepository extends Model
         ];
     }
 
-    public function orderRows(int $limit = 10): array
+    public function orderRows(int $limit = 10, ?array $range = null, array $filters = []): array
     {
+        [$dateCondition, $params] = $this->dateRangeCondition('t.tanggal_masuk', $range, 'orders');
+        [$filterConditions, $filterParams] = $this->orderFilterConditions($filters, 'orders');
+        $where = $this->whereClause(array_merge([$dateCondition], $filterConditions));
+        $params = array_merge($params, $filterParams);
+
         $statement = $this->pdo()->prepare(
             'SELECT
                 t.no_nota,
@@ -233,6 +297,7 @@ class LaundryRepository extends Model
              JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
              LEFT JOIN detail_transaksi d ON d.no_nota = t.no_nota
              LEFT JOIN paket_laundry pl ON pl.id_paket = d.id_paket
+             ' . $where . '
              GROUP BY
                 t.no_nota, t.tanggal_masuk, t.estimasi_selesai, t.tanggal_selesai,
                 t.status_cucian, t.total_harga, t.catatan,
@@ -240,6 +305,7 @@ class LaundryRepository extends Model
              ORDER BY t.tanggal_masuk DESC, t.no_nota DESC
              LIMIT :limit'
         );
+        $this->bindStatementParams($statement, $params);
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
         $statement->execute();
 
@@ -278,7 +344,7 @@ class LaundryRepository extends Model
         foreach ($statement->fetchAll() as $index => $row) {
             $customers[] = [
                 'no' => $index + 1,
-                'id' => 'PLG-' . str_pad((string) $row['id_pelanggan'], 4, '0', STR_PAD_LEFT),
+                'id' => $this->formatCustomerCode((int) $row['id_pelanggan']),
                 'name' => $row['nama_pelanggan'],
                 'phone' => $row['no_telp'],
                 'address' => $row['alamat'] ?: '-',
@@ -291,13 +357,28 @@ class LaundryRepository extends Model
         return $customers;
     }
 
-    public function statusSummary(): array
+    public function nextCustomerCode(): string
     {
-        $statement = $this->pdo()->query(
-            'SELECT status_cucian, COUNT(*) AS total
-             FROM transaksi
-             GROUP BY status_cucian'
+        $nextId = (int) $this->pdo()->query('SELECT COALESCE(MAX(id_pelanggan), 0) + 1 FROM pelanggan')->fetchColumn();
+
+        return $this->formatCustomerCode($nextId);
+    }
+
+    public function statusSummary(?array $range = null, array $filters = []): array
+    {
+        [$dateCondition, $params] = $this->dateRangeCondition('t.tanggal_masuk', $range, 'status');
+        [$filterConditions, $filterParams] = $this->orderFilterConditions($filters, 'status');
+        $where = $this->whereClause(array_merge([$dateCondition], $filterConditions));
+        $params = array_merge($params, $filterParams);
+        $statement = $this->pdo()->prepare(
+            'SELECT t.status_cucian, COUNT(*) AS total
+             FROM transaksi t
+             JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
+             ' . $where . '
+             GROUP BY t.status_cucian'
         );
+        $this->bindStatementParams($statement, $params);
+        $statement->execute();
 
         $counts = array_fill_keys(self::STATUSES, 0);
         $total = 0;
@@ -321,15 +402,21 @@ class LaundryRepository extends Model
         return $summary;
     }
 
-    public function serviceSummary(): array
+    public function serviceSummary(?array $range = null): array
     {
-        $statement = $this->pdo()->query(
-            'SELECT pl.nama_paket, COUNT(d.id_detail) AS total
+        [$dateCondition, $params] = $this->dateRangeCondition('t.tanggal_masuk', $range, 'service');
+        $joinFilter = $dateCondition !== '' ? ' AND ' . $dateCondition : '';
+
+        $statement = $this->pdo()->prepare(
+            'SELECT pl.nama_paket, COUNT(t.no_nota) AS total
              FROM paket_laundry pl
              LEFT JOIN detail_transaksi d ON d.id_paket = pl.id_paket
+             LEFT JOIN transaksi t ON t.no_nota = d.no_nota' . $joinFilter . '
              GROUP BY pl.id_paket, pl.nama_paket
              ORDER BY total DESC, pl.id_paket'
         );
+        $this->bindStatementParams($statement, $params);
+        $statement->execute();
 
         $rows = $statement->fetchAll();
         $grandTotal = array_sum(array_map(static fn (array $row): int => (int) $row['total'], $rows));
@@ -452,6 +539,88 @@ class LaundryRepository extends Model
         $this->recordActivity($adminId, 'cucian', 'Data cucian baru ditambahkan', $nota . ' - ' . $customerName, $nota);
 
         return $nota;
+    }
+
+    public function createCustomer(array $payload, int $adminId): string
+    {
+        $customerName = trim((string) ($payload['customer_name'] ?? ''));
+        $phone = trim((string) ($payload['phone'] ?? ''));
+        $address = trim((string) ($payload['address'] ?? ''));
+
+        if ($customerName === '' || $phone === '') {
+            throw new \InvalidArgumentException('Data pelanggan belum lengkap.');
+        }
+
+        $existing = $this->pdo()->prepare('SELECT id_pelanggan FROM pelanggan WHERE no_telp = :phone LIMIT 1');
+        $existing->execute(['phone' => $phone]);
+
+        if ($existing->fetchColumn()) {
+            throw new \InvalidArgumentException('No. telepon sudah terdaftar sebagai pelanggan.');
+        }
+
+        $insert = $this->pdo()->prepare(
+            'INSERT INTO pelanggan (nama_pelanggan, no_telp, alamat, role)
+             VALUES (:name, :phone, :address, "pelanggan")'
+        );
+        $insert->execute([
+            'name' => $customerName,
+            'phone' => $phone,
+            'address' => $address !== '' ? $address : null,
+        ]);
+
+        $customerCode = $this->formatCustomerCode((int) $this->pdo()->lastInsertId());
+        $this->recordActivity($adminId, 'pelanggan', 'Pelanggan baru ditambahkan', $customerCode . ' - ' . $customerName, $customerCode);
+
+        return $customerCode;
+    }
+
+    public function createPackage(array $payload, int $adminId): string
+    {
+        $packageName = trim((string) ($payload['package_name'] ?? ''));
+        $category = trim((string) ($payload['category'] ?? ''));
+        $price = max(0, (float) ($payload['price'] ?? 0));
+        $duration = max(0, (int) ($payload['duration'] ?? 0));
+        $unitLabel = trim((string) ($payload['unit_label'] ?? ''));
+        $status = trim((string) ($payload['status'] ?? 'Aktif'));
+        $description = trim((string) ($payload['description'] ?? ''));
+
+        if ($packageName === '' || $category === '' || $price <= 0 || $duration <= 0 || $unitLabel === '') {
+            throw new \InvalidArgumentException('Data paket laundry belum lengkap.');
+        }
+
+        $category = in_array($category, ['Kiloan', 'Khusus'], true) ? $category : 'Kiloan';
+        $status = $status === 'Nonaktif' ? 'Nonaktif' : 'Aktif';
+        $description = $description !== '' ? substr($description, 0, 200) : null;
+
+        $existing = $this->pdo()->prepare('SELECT id_paket FROM paket_laundry WHERE nama_paket = :name LIMIT 1');
+        $existing->execute(['name' => $packageName]);
+
+        if ($existing->fetchColumn()) {
+            throw new \InvalidArgumentException('Nama paket sudah terdaftar.');
+        }
+
+        $insert = $this->pdo()->prepare(
+            'INSERT INTO paket_laundry
+                (nama_paket, harga_per_kg, estimasi_hari, status_aktif, deskripsi, kategori, tone, ikon, unit_label)
+             VALUES
+                (:name, :price, :duration, :status, :description, :category, :tone, :icon, :unit_label)'
+        );
+        $insert->execute([
+            'name' => $packageName,
+            'price' => $price,
+            'duration' => $duration,
+            'status' => $status,
+            'description' => $description,
+            'category' => $category,
+            'tone' => $this->packageTone($category, $unitLabel),
+            'icon' => $this->packageIcon($category, $unitLabel),
+            'unit_label' => $unitLabel,
+        ]);
+
+        $packageCode = $this->formatPackageCode((int) $this->pdo()->lastInsertId());
+        $this->recordActivity($adminId, 'paket', 'Paket laundry baru ditambahkan', $packageCode . ' - ' . $packageName, $packageCode);
+
+        return $packageCode;
     }
 
     public function updateStatus(string $nota, string $status, string $note, int $adminId): void
@@ -616,14 +785,124 @@ class LaundryRepository extends Model
         }, $statement->fetchAll());
     }
 
-    public function countOrders(): int
+    public function countOrders(?array $range = null, array $filters = []): int
     {
-        return (int) $this->pdo()->query('SELECT COUNT(*) FROM transaksi')->fetchColumn();
+        [$dateCondition, $params] = $this->dateRangeCondition('t.tanggal_masuk', $range, 'count_orders');
+        [$filterConditions, $filterParams] = $this->orderFilterConditions($filters, 'count_orders');
+        $where = $this->whereClause(array_merge([$dateCondition], $filterConditions));
+        $params = array_merge($params, $filterParams);
+
+        return (int) $this->scalar(
+            'SELECT COUNT(DISTINCT t.no_nota)
+             FROM transaksi t
+             JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
+             ' . $where,
+            $params
+        );
     }
 
     public function countCustomers(): int
     {
         return (int) $this->pdo()->query('SELECT COUNT(*) FROM pelanggan')->fetchColumn();
+    }
+
+    private function scalar(string $sql, array $params = [])
+    {
+        $statement = $this->pdo()->prepare($sql);
+        $this->bindStatementParams($statement, $params);
+        $statement->execute();
+
+        return $statement->fetchColumn();
+    }
+
+    private function bindStatementParams(\PDOStatement $statement, array $params): void
+    {
+        foreach ($params as $key => $value) {
+            $statement->bindValue(':' . $key, $value);
+        }
+    }
+
+    private function dateRangeCondition(string $column, ?array $range, string $prefix): array
+    {
+        $start = $range['start'] ?? null;
+        $end = $range['end'] ?? null;
+
+        if (!$start || !$end) {
+            return ['', []];
+        }
+
+        return [
+            $column . ' >= :' . $prefix . '_start AND ' . $column . ' < :' . $prefix . '_end',
+            [
+                $prefix . '_start' => $start,
+                $prefix . '_end' => $end,
+            ],
+        ];
+    }
+
+    private function orderFilterConditions(array $filters, string $prefix): array
+    {
+        $conditions = [];
+        $params = [];
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = trim((string) ($filters['status'] ?? ''));
+        $service = trim((string) ($filters['service'] ?? ''));
+
+        if ($search !== '') {
+            $conditions[] = '(t.no_nota LIKE :' . $prefix . '_search
+                OR p.nama_pelanggan LIKE :' . $prefix . '_search
+                OR p.no_telp LIKE :' . $prefix . '_search
+                OR EXISTS (
+                    SELECT 1
+                    FROM detail_transaksi sd
+                    JOIN paket_laundry sp ON sp.id_paket = sd.id_paket
+                    WHERE sd.no_nota = t.no_nota
+                        AND sp.nama_paket LIKE :' . $prefix . '_search
+                ))';
+            $params[$prefix . '_search'] = '%' . $search . '%';
+        }
+
+        if ($status !== '') {
+            $conditions[] = 't.status_cucian = :' . $prefix . '_status';
+            $params[$prefix . '_status'] = $status;
+        }
+
+        if ($service !== '') {
+            $conditions[] = 'EXISTS (
+                SELECT 1
+                FROM detail_transaksi fd
+                JOIN paket_laundry fp ON fp.id_paket = fd.id_paket
+                WHERE fd.no_nota = t.no_nota
+                    AND fp.nama_paket = :' . $prefix . '_service
+            )';
+            $params[$prefix . '_service'] = $service;
+        }
+
+        return [$conditions, $params];
+    }
+
+    private function whereClause(array $conditions): string
+    {
+        $conditions = array_values(array_filter($conditions, static fn ($condition): bool => trim((string) $condition) !== ''));
+
+        return $conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions);
+    }
+
+    private function daysInRange(?array $range): int
+    {
+        if (empty($range['start']) || empty($range['end'])) {
+            return 1;
+        }
+
+        try {
+            $start = new DateTimeImmutable((string) $range['start']);
+            $end = new DateTimeImmutable((string) $range['end']);
+
+            return max(1, (int) $start->diff($end)->days);
+        } catch (Throwable) {
+            return 1;
+        }
     }
 
     private function presentOrderRow(array $row, int $number): array
@@ -646,6 +925,42 @@ class LaundryRepository extends Model
             'status' => $row['status_cucian'],
             'tone' => self::STATUS_TONES[$row['status_cucian']] ?? 'blue',
         ];
+    }
+
+    private function formatPackageCode(int $packageId): string
+    {
+        return 'PKT-' . str_pad((string) $packageId, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function formatCustomerCode(int $customerId): string
+    {
+        return 'PLG-' . str_pad((string) $customerId, 4, '0', STR_PAD_LEFT);
+    }
+
+    private function packageTone(string $category, string $unitLabel): string
+    {
+        if ($category === 'Kiloan') {
+            return 'blue';
+        }
+
+        return str_contains(strtolower($unitLabel), 'cepat') ? 'amber' : 'teal';
+    }
+
+    private function packageIcon(string $category, string $unitLabel): string
+    {
+        if ($category === 'Kiloan') {
+            return '&#128085;';
+        }
+
+        if (str_contains(strtolower($unitLabel), 'cepat')) {
+            return '&#9889;';
+        }
+
+        if (str_contains(strtolower($unitLabel), 'rawatan')) {
+            return '&#128737;';
+        }
+
+        return '&#128717;';
     }
 
     private function findOrCreateCustomer(string $name, string $phone): int
@@ -849,6 +1164,8 @@ class LaundryRepository extends Model
     {
         return [
             'cucian' => '+',
+            'pelanggan' => '&#128101;',
+            'paket' => '&#9672;',
             'status' => '&#10003;',
             'login' => '&#128274;',
             'logout' => '&#8617;',
@@ -862,6 +1179,8 @@ class LaundryRepository extends Model
     {
         return [
             'cucian' => 'blue',
+            'pelanggan' => 'purple',
+            'paket' => 'orange',
             'status' => 'green',
             'login' => 'purple',
             'logout' => 'orange',

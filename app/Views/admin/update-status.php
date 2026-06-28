@@ -231,6 +231,15 @@ $stats = $stats ?? [
     ['tone' => 'teal', 'icon' => '&#128705;', 'label' => 'Dicuci', 'value' => '31', 'meta' => 'Cucian'],
     ['tone' => 'purple', 'icon' => '&#10003;', 'label' => 'Selesai', 'value' => '22', 'meta' => 'Cucian'],
 ];
+$serviceOptions = $serviceOptions ?? [];
+
+if ($serviceOptions === []) {
+    $serviceOptions = array_map(static fn (string $name): array => [
+        'id' => $name,
+        'name' => $name,
+        'label' => $name,
+    ], ['Cuci Kering', 'Cuci Lipat', 'Cuci Setrika Lipat', 'Setrika Saja', 'Pengering & Lipat', 'Baju Bayi', 'Satuan', 'Express', 'Treatment']);
+}
 
 $selectedOrder = $orders[2] ?? $orders[0] ?? [
     'key' => '',
@@ -276,21 +285,7 @@ ob_start();
                 <span aria-hidden="true">&#9776;</span>
             </button>
 
-            <div class="dashboard-userbar">
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Notifikasi">
-                    <span aria-hidden="true">&#128276;</span>
-                    <i>3</i>
-                </button>
-                <button class="dashboard-icon-button badge-button" type="button" aria-label="Pesan">
-                    <span aria-hidden="true">&#128172;</span>
-                    <i>2</i>
-                </button>
-                <div class="dashboard-user">
-                    <span class="dashboard-avatar" aria-hidden="true"></span>
-                    <p><strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></small></p>
-                    <span aria-hidden="true">&#8964;</span>
-                </div>
-            </div>
+            <?php require __DIR__ . '/partials/topbar-userbar.php'; ?>
         </header>
 
         <main class="dashboard-main laundry-main">
@@ -333,11 +328,18 @@ ob_start();
                         <option><?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?></option>
                     <?php endforeach; ?>
                 </select>
-                <select aria-label="Filter layanan">
-                    <option>Semua Layanan</option>
-                    <option>Cuci Kering</option>
-                    <option>Cuci Setrika</option>
-                </select>
+                <label class="service-select-shell" aria-label="Filter layanan">
+                    <span class="service-select-icon" aria-hidden="true">&#9672;</span>
+                    <select class="service-type-select" aria-label="Filter layanan" data-service-type-select>
+                        <option value="">Semua Layanan</option>
+                        <?php foreach ($serviceOptions as $option): ?>
+                            <option value="<?= htmlspecialchars((string) ($option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars((string) ($option['label'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <span class="service-select-chevron" aria-hidden="true">&#8964;</span>
+                </label>
                 <button class="date-filter" type="button">
                     <span aria-hidden="true">&#128197;</span>
                     Bulan Ini (1 - 31 Mei 2026)
