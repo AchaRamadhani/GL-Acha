@@ -507,6 +507,216 @@ if (laundryModalOpenButtons.length && laundryModals.length) {
     });
 }
 
+const packageCrudDataElement = document.querySelector('#packageCrudData');
+const packageModal = document.querySelector('[data-laundry-modal="package"]');
+const packageForm = document.querySelector('[data-package-form]');
+
+if (packageCrudDataElement && packageModal && packageForm) {
+    const packageRows = JSON.parse(packageCrudDataElement.textContent || '[]');
+    const packages = new Map(packageRows.map((item) => [String(item.id), item]));
+    const packageHeader = packageModal.querySelector('[data-package-modal-header]');
+    const packageTitle = packageHeader?.querySelector('h2');
+    const packageIntro = packageHeader?.querySelector('p');
+    const packageIdField = packageForm.querySelector('[data-package-id-field]');
+    const packageCodeField = packageForm.querySelector('[data-package-code-field]');
+    const packageSaveButton = packageForm.querySelector('[data-package-save-button]');
+    const packageSubmitLabel = packageForm.querySelector('[data-package-submit-label]');
+    const packageResetButton = packageForm.querySelector('[data-laundry-form-reset]');
+    const packageCancelButton = packageForm.querySelector('.laundry-cancel-button');
+    const packageDeleteForm = document.querySelector('[data-package-delete-form]');
+    const packageControls = Array.from(packageForm.querySelectorAll('input:not([type="hidden"]), select, textarea'));
+    let previousPackageFocus = null;
+
+    const ensureSelectOption = (select, value, label = value) => {
+        if (!select || !value) {
+            return;
+        }
+
+        const hasOption = Array.from(select.options).some((option) => option.value === String(value));
+
+        if (!hasOption) {
+            select.add(new Option(label, value));
+        }
+    };
+
+    const updatePackageCounter = () => {
+        packageForm.querySelectorAll('[data-character-counter-source]').forEach((source) => {
+            const key = source.dataset.characterCounterSource;
+            const maxLength = source.getAttribute('maxlength') || source.dataset.characterCounterMax || '200';
+
+            document.querySelectorAll('[data-character-counter]').forEach((counter) => {
+                if (counter.dataset.characterCounter === key) {
+                    counter.textContent = `${source.value.length} / ${maxLength}`;
+                }
+            });
+        });
+    };
+
+    const openPackageModal = () => {
+        previousPackageFocus = document.activeElement;
+        packageModal.hidden = false;
+        document.body.classList.add('laundry-modal-open');
+        window.requestAnimationFrame(() => {
+            packageForm.querySelector('[data-laundry-first-field], input:not([type="hidden"]):not([readonly]):not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
+        });
+    };
+
+    const setPackageControlsState = (mode) => {
+        const isView = mode === 'view';
+
+        packageControls.forEach((control) => {
+            if (control === packageCodeField) {
+                control.disabled = false;
+                control.readOnly = true;
+                return;
+            }
+
+            control.disabled = isView;
+
+            if (control.matches('input, textarea')) {
+                control.readOnly = isView;
+            }
+        });
+
+        if (packageSaveButton) {
+            packageSaveButton.hidden = isView;
+        }
+
+        if (packageResetButton) {
+            packageResetButton.hidden = mode !== 'create';
+        }
+
+        if (packageCancelButton) {
+            packageCancelButton.textContent = isView ? 'Tutup' : 'Batal';
+        }
+    };
+
+    const fillPackageForm = (item) => {
+        const fields = packageForm.elements;
+
+        if (packageIdField) {
+            packageIdField.value = item.id || '';
+        }
+
+        if (packageCodeField) {
+            packageCodeField.value = item.code || packageCodeField.dataset.nextPackageCode || '';
+        }
+
+        fields.package_name.value = item.name || '';
+        fields.price.value = item.price || '';
+        fields.description.value = item.description || '';
+
+        ensureSelectOption(fields.category, item.category);
+        ensureSelectOption(fields.unit_label, item.unit);
+        ensureSelectOption(fields.duration, item.duration, `${item.duration} hari`);
+        ensureSelectOption(fields.status, item.status);
+
+        fields.category.value = item.category || '';
+        fields.unit_label.value = item.unit || '';
+        fields.duration.value = item.duration || '';
+        fields.status.value = item.status || 'Aktif';
+        updatePackageCounter();
+    };
+
+    const resetPackageForm = () => {
+        packageForm.reset();
+        packageForm.action = packageForm.dataset.createAction || packageForm.action;
+
+        if (packageIdField) {
+            packageIdField.value = '';
+        }
+
+        if (packageCodeField) {
+            packageCodeField.value = packageCodeField.dataset.nextPackageCode || packageCodeField.value;
+        }
+
+        if (packageTitle) {
+            packageTitle.textContent = 'Tambah Paket Laundry';
+        }
+
+        if (packageIntro) {
+            packageIntro.textContent = 'Masukkan data paket laundry dengan lengkap.';
+        }
+
+        if (packageSubmitLabel) {
+            packageSubmitLabel.textContent = 'Simpan Paket';
+        }
+
+        setPackageControlsState('create');
+        updatePackageCounter();
+    };
+
+    const showPackage = (id, mode) => {
+        const item = packages.get(String(id));
+
+        if (!item) {
+            return;
+        }
+
+        packageForm.action = mode === 'edit'
+            ? packageForm.dataset.updateAction || packageForm.action
+            : packageForm.dataset.createAction || packageForm.action;
+
+        fillPackageForm(item);
+
+        if (packageTitle) {
+            packageTitle.textContent = mode === 'edit' ? 'Edit Paket Laundry' : 'Detail Paket Laundry';
+        }
+
+        if (packageIntro) {
+            packageIntro.textContent = `${item.code || 'Paket'} - ${item.name || 'Paket Laundry'}`;
+        }
+
+        if (packageSubmitLabel) {
+            packageSubmitLabel.textContent = 'Simpan Perubahan';
+        }
+
+        setPackageControlsState(mode);
+        openPackageModal();
+    };
+
+    document.querySelectorAll('[data-package-create]').forEach((button) => {
+        button.addEventListener('click', () => {
+            resetPackageForm();
+            openPackageModal();
+        });
+    });
+
+    document.querySelectorAll('[data-package-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.packageAction;
+            const id = button.dataset.packageId;
+
+            if (action === 'view' || action === 'edit') {
+                showPackage(id, action);
+                return;
+            }
+
+            if (action !== 'delete' || !packageDeleteForm) {
+                return;
+            }
+
+            const item = packages.get(String(id));
+            const name = item?.name || 'paket ini';
+
+            if (!window.confirm(`Hapus paket "${name}"? Tindakan ini tidak bisa dibatalkan.`)) {
+                return;
+            }
+
+            packageDeleteForm.elements.package_id.value = id;
+            packageDeleteForm.submit();
+        });
+    });
+
+    packageModal.addEventListener('click', (event) => {
+        if (event.target === packageModal && previousPackageFocus) {
+            previousPackageFocus.focus();
+        }
+    });
+
+    resetPackageForm();
+}
+
 const statusOrdersData = document.querySelector('#statusOrdersData');
 
 if (statusOrdersData) {

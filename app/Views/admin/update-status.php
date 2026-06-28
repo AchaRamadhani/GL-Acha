@@ -334,7 +334,7 @@ ob_start();
                         <option value="">Semua Layanan</option>
                         <?php foreach ($serviceOptions as $option): ?>
                             <option value="<?= htmlspecialchars((string) ($option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                                <?= htmlspecialchars((string) ($option['label'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars((string) ($option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

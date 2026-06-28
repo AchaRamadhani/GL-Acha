@@ -153,6 +153,8 @@ class HomeController extends Controller
         Auth::requireAdmin();
         $stats = $this->laundry()->transactionStats();
         $packages = $this->laundry()->packages();
+        $filters = $this->laundryFilters();
+        $dateRange = $filters['range'];
 
         $this->view('admin/transaksi', [
             'title' => 'Transaksi - Ghava Laundry',
@@ -163,12 +165,14 @@ class HomeController extends Controller
                 ['tone' => 'orange', 'icon' => '&#9719;', 'label' => 'Belum Selesai', 'value' => (string) $stats['open'], 'meta' => 'Transaksi'],
                 ['tone' => 'green', 'icon' => '&#10003;', 'label' => 'Selesai', 'value' => (string) $stats['completed'], 'meta' => 'Transaksi'],
             ],
-            'transactions' => $this->laundry()->orderRows(10),
-            'statusSummary' => $this->laundry()->statusSummary(),
+            'transactions' => $this->laundry()->orderRows(10, $dateRange, $filters),
+            'statusSummary' => $this->laundry()->statusSummary($dateRange, $filters),
             'noteActivities' => $this->laundry()->activities(5, ['cucian', 'status', 'tracking']),
-            'transactionSummary' => $stats,
+            'transactionSummary' => $this->laundry()->transactionSummary($dateRange, $filters),
             'serviceOptions' => $this->serviceOptions($packages),
-            'totalRows' => $this->laundry()->countOrders(),
+            'statusOptions' => $this->laundryStatusOptions(),
+            'filters' => $filters,
+            'totalRows' => $this->laundry()->countOrders($dateRange, $filters),
         ]);
     }
 
@@ -289,6 +293,44 @@ class HomeController extends Controller
         try {
             $packageCode = $this->laundry()->createPackage($_POST, Auth::currentAdminId() ?? 0);
             Auth::flash('admin_success', 'Paket laundry berhasil disimpan dengan ID ' . $packageCode . '.');
+        } catch (Throwable $error) {
+            Auth::flash('admin_error', $error->getMessage());
+        }
+
+        Auth::redirect('/admin/paket-laundry');
+    }
+
+    public function adminUpdatePaketLaundry(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
+            Auth::flash('admin_error', 'Sesi form sudah kedaluwarsa. Silakan coba lagi.');
+            Auth::redirect('/admin/paket-laundry');
+        }
+
+        try {
+            $packageCode = $this->laundry()->updatePackage($_POST, Auth::currentAdminId() ?? 0);
+            Auth::flash('admin_success', 'Paket laundry ' . $packageCode . ' berhasil diperbarui.');
+        } catch (Throwable $error) {
+            Auth::flash('admin_error', $error->getMessage());
+        }
+
+        Auth::redirect('/admin/paket-laundry');
+    }
+
+    public function adminDeletePaketLaundry(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
+            Auth::flash('admin_error', 'Sesi form sudah kedaluwarsa. Silakan coba lagi.');
+            Auth::redirect('/admin/paket-laundry');
+        }
+
+        try {
+            $packageCode = $this->laundry()->deletePackage((int) ($_POST['package_id'] ?? 0), Auth::currentAdminId() ?? 0);
+            Auth::flash('admin_success', 'Paket laundry ' . $packageCode . ' berhasil dihapus.');
         } catch (Throwable $error) {
             Auth::flash('admin_error', $error->getMessage());
         }
@@ -556,14 +598,10 @@ class HomeController extends Controller
                 continue;
             }
 
-            $category = trim((string) ($package['category'] ?? ''));
-            $unit = trim((string) ($package['unit'] ?? ''));
-            $meta = array_filter([$category !== '' ? 'Layanan ' . $category : '', $unit]);
-
             $options[] = [
                 'id' => (string) ($package['id'] ?? $name),
                 'name' => $name,
-                'label' => $name . ($meta !== [] ? ' (' . implode(' - ', $meta) . ')' : ''),
+                'label' => $name,
             ];
         }
 

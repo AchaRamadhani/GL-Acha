@@ -13,6 +13,8 @@ $router->get('/admin/pelanggan', [HomeController::class, 'adminPelanggan']);
 $router->post('/admin/pelanggan', [HomeController::class, 'adminStorePelanggan']);
 $router->get('/admin/paket-laundry', [HomeController::class, 'adminPaketLaundry']);
 $router->post('/admin/paket-laundry', [HomeController::class, 'adminStorePaketLaundry']);
+$router->post('/admin/paket-laundry/update', [HomeController::class, 'adminUpdatePaketLaundry']);
+$router->post('/admin/paket-laundry/delete', [HomeController::class, 'adminDeletePaketLaundry']);
 $router->get('/admin/pengaturan', [HomeController::class, 'adminPengaturan']);
 $router->post('/admin/pengaturan', [HomeController::class, 'adminStorePengaturan']);
 $router->get('/admin/login', [HomeController::class, 'adminLogin']);

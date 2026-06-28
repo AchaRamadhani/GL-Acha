@@ -25,10 +25,10 @@ $stats = $stats ?? [
 $transactions = $transactions ?? [
     ['no' => 1, 'nota' => 'INV-250521-001', 'name' => 'Budi Santoso', 'service' => 'Cuci Kering', 'weight' => '3,5 kg', 'in' => "21 Mei 2026\n10:15", 'eta' => "23 Mei 2026\n15:00", 'total' => 'Rp 45.000', 'status' => 'Selesai', 'tone' => 'purple'],
     ['no' => 2, 'nota' => 'INV-250521-002', 'name' => 'Siti Aisyah', 'service' => 'Cuci Lipat', 'weight' => '5,0 kg', 'in' => "21 Mei 2026\n11:20", 'eta' => "21 Mei 2026\n18:00", 'total' => 'Rp 35.000', 'status' => 'Diambil', 'tone' => 'green'],
-    ['no' => 3, 'nota' => 'INV-250520-015', 'name' => 'Andi Wijaya', 'service' => 'Cuci Setrika Lipat', 'weight' => '4,0 kg', 'in' => "20 Mei 2026\n09:30", 'eta' => "21 Mei 2026\n15:00", 'total' => 'Rp 40.000', 'status' => 'Dicuci', 'tone' => 'blue'],
+    ['no' => 3, 'nota' => 'INV-250520-015', 'name' => 'Andi Wijaya', 'service' => 'Cuci Setrika Lipat', 'weight' => '4,0 kg', 'in' => "20 Mei 2026\n09:30", 'eta' => "21 Mei 2026\n15:00", 'total' => 'Rp 40.000', 'status' => 'Dicuci', 'tone' => 'teal'],
     ['no' => 4, 'nota' => 'INV-250520-014', 'name' => 'Rina Marlina', 'service' => 'Setrika Saja', 'weight' => '3,0 kg', 'in' => "20 Mei 2026\n10:45", 'eta' => "20 Mei 2026\n17:00", 'total' => 'Rp 30.000', 'status' => 'Disetrika', 'tone' => 'orange'],
-    ['no' => 5, 'nota' => 'INV-250520-013', 'name' => 'Dewi Lestari', 'service' => 'Pengering & Lipat', 'weight' => '6,0 kg', 'in' => "20 Mei 2026\n14:00", 'eta' => "21 Mei 2026\n15:00", 'total' => 'Rp 50.000', 'status' => 'Dikeringkan', 'tone' => 'teal'],
-    ['no' => 6, 'nota' => 'INV-250519-012', 'name' => 'Hendra Pratama', 'service' => 'Baju Bayi', 'weight' => '3,0 kg', 'in' => "19 Mei 2026\n09:10", 'eta' => "20 Mei 2026\n12:00", 'total' => 'Rp 28.000', 'status' => 'Diproses', 'tone' => 'blue'],
+    ['no' => 5, 'nota' => 'INV-250520-013', 'name' => 'Dewi Lestari', 'service' => 'Pengering & Lipat', 'weight' => '6,0 kg', 'in' => "20 Mei 2026\n14:00", 'eta' => "21 Mei 2026\n15:00", 'total' => 'Rp 50.000', 'status' => 'Dikeringkan', 'tone' => 'cyan'],
+    ['no' => 6, 'nota' => 'INV-250519-012', 'name' => 'Hendra Pratama', 'service' => 'Baju Bayi', 'weight' => '3,0 kg', 'in' => "19 Mei 2026\n09:10", 'eta' => "20 Mei 2026\n12:00", 'total' => 'Rp 28.000', 'status' => 'Diproses', 'tone' => 'green'],
     ['no' => 7, 'nota' => 'INV-250519-011', 'name' => 'Maya Rahma', 'service' => 'Satuan', 'weight' => '1 pcs', 'in' => "19 Mei 2026\n13:25", 'eta' => "19 Mei 2026\n16:00", 'total' => 'Rp 8.000', 'status' => 'Diambil', 'tone' => 'green'],
     ['no' => 8, 'nota' => 'INV-250518-010', 'name' => 'Fajar Nugroho', 'service' => 'Express', 'weight' => '3,0 kg', 'in' => "18 Mei 2026\n08:50", 'eta' => "18 Mei 2026\n15:00", 'total' => 'Rp 60.000', 'status' => 'Selesai', 'tone' => 'purple'],
     ['no' => 9, 'nota' => 'INV-250518-009', 'name' => 'Nurul Hidayah', 'service' => 'Treatment', 'weight' => '2,0 kg', 'in' => "18 Mei 2026\n11:30", 'eta' => "20 Mei 2026\n15:00", 'total' => 'Rp 55.000', 'status' => 'Antrean', 'tone' => 'blue'],
@@ -36,13 +36,23 @@ $transactions = $transactions ?? [
 ];
 
 $statusSummary = $statusSummary ?? [
-    ['label' => 'Antrean', 'value' => 18, 'percent' => '13,6%', 'tone' => 'blue-light'],
-    ['label' => 'Diproses', 'value' => 12, 'percent' => '9,1%', 'tone' => 'blue'],
-    ['label' => 'Dicuci', 'value' => 20, 'percent' => '15,2%', 'tone' => 'blue-dark'],
-    ['label' => 'Dikeringkan', 'value' => 10, 'percent' => '7,6%', 'tone' => 'teal'],
+    ['label' => 'Antrean', 'value' => 18, 'percent' => '13,6%', 'tone' => 'blue'],
+    ['label' => 'Diproses', 'value' => 12, 'percent' => '9,1%', 'tone' => 'green'],
+    ['label' => 'Dicuci', 'value' => 20, 'percent' => '15,2%', 'tone' => 'teal'],
+    ['label' => 'Dikeringkan', 'value' => 10, 'percent' => '7,6%', 'tone' => 'cyan'],
     ['label' => 'Disetrika', 'value' => 8, 'percent' => '6,1%', 'tone' => 'orange'],
     ['label' => 'Selesai', 'value' => 40, 'percent' => '30,3%', 'tone' => 'purple'],
     ['label' => 'Diambil', 'value' => 24, 'percent' => '18,2%', 'tone' => 'green'],
+];
+
+$statusColors = [
+    'Antrean' => '#2f80ed',
+    'Diproses' => '#28a765',
+    'Dicuci' => '#32b7c7',
+    'Dikeringkan' => '#0ea5d8',
+    'Disetrika' => '#f59e0b',
+    'Selesai' => '#7047d9',
+    'Diambil' => '#3dbb4f',
 ];
 
 $noteActivities = $noteActivities ?? [
@@ -66,6 +76,19 @@ if ($serviceOptions === []) {
     ], ['Cuci Kering', 'Cuci Lipat', 'Cuci Setrika Lipat', 'Setrika Saja', 'Pengering & Lipat', 'Baju Bayi', 'Satuan', 'Express', 'Treatment']);
 }
 
+$statusOptions = $statusOptions ?? ['Antrean', 'Diproses', 'Dicuci', 'Dikeringkan', 'Disetrika', 'Selesai', 'Diambil'];
+$filters = array_merge([
+    'search' => '',
+    'status' => '',
+    'service' => '',
+    'date_from' => '',
+    'date_to' => '',
+], is_array($filters ?? null) ? $filters : []);
+$filterSearchSafe = htmlspecialchars((string) $filters['search'], ENT_QUOTES, 'UTF-8');
+$filterStatus = (string) $filters['status'];
+$filterService = (string) $filters['service'];
+$filterDateFromSafe = htmlspecialchars((string) $filters['date_from'], ENT_QUOTES, 'UTF-8');
+$filterDateToSafe = htmlspecialchars((string) $filters['date_to'], ENT_QUOTES, 'UTF-8');
 $totalRows = $totalRows ?? count($transactions);
 $averageTransaction = (int) ($transactionSummary['total'] ?? 0) > 0
     ? ((float) ($transactionSummary['revenue'] ?? 0) / (int) $transactionSummary['total'])
@@ -135,35 +158,46 @@ ob_start();
 
             <section class="laundry-workspace transaction-workspace">
                 <div class="laundry-data-panel">
-                    <form class="laundry-filter-bar transaction-filter-bar" action="#" method="get">
+                    <form class="laundry-filter-bar transaction-filter-bar" action="<?= $safeBaseUrl ?>/admin/transaksi" method="get">
                         <label class="laundry-search-field" for="transactionSearch">
                             <span aria-hidden="true">&#128269;</span>
-                            <input id="transactionSearch" type="search" placeholder="Cari no nota atau nama pelanggan..." autocomplete="off">
+                            <input id="transactionSearch" name="q" type="search" placeholder="Cari no nota atau nama pelanggan..." value="<?= $filterSearchSafe ?>" autocomplete="off">
                         </label>
-                        <select aria-label="Filter status">
-                            <option>Semua Status</option>
+                        <select name="status" aria-label="Filter status">
+                            <option value="">Semua Status</option>
+                            <?php foreach ($statusOptions as $statusOption): ?>
+                                <option value="<?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>" <?= $filterStatus === $statusOption ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                         <label class="service-select-shell" aria-label="Filter layanan">
                             <span class="service-select-icon" aria-hidden="true">&#9672;</span>
-                            <select class="service-type-select" aria-label="Filter layanan" data-service-type-select>
+                            <select class="service-type-select" name="service" aria-label="Filter layanan" data-service-type-select>
                                 <option value="">Semua Layanan</option>
                                 <?php foreach ($serviceOptions as $option): ?>
-                                    <option value="<?= htmlspecialchars((string) ($option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                                        <?= htmlspecialchars((string) ($option['label'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                    <?php $serviceName = (string) ($option['name'] ?? ''); ?>
+                                    <option value="<?= htmlspecialchars($serviceName, ENT_QUOTES, 'UTF-8') ?>" <?= $filterService === $serviceName ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($serviceName, ENT_QUOTES, 'UTF-8') ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                             <span class="service-select-chevron" aria-hidden="true">&#8964;</span>
                         </label>
-                        <button class="date-filter" type="button">
+                        <div class="date-filter date-filter-range" aria-label="Filter tanggal transaksi">
                             <span aria-hidden="true">&#128197;</span>
-                            01 Mei 2026 - 31 Mei 2026
-                        </button>
-                        <button class="filter-primary" type="button">
+                            <input id="transactionDateFrom" name="date_from" type="date" value="<?= $filterDateFromSafe ?>" aria-label="Tanggal mulai">
+                            <span class="date-filter-separator" aria-hidden="true">-</span>
+                            <input id="transactionDateTo" name="date_to" type="date" value="<?= $filterDateToSafe ?>" aria-label="Tanggal akhir">
+                        </div>
+                        <button class="filter-primary" type="submit">
                             <span aria-hidden="true">&#9661;</span>
                             Filter
                         </button>
-                        <button class="filter-reset" type="button">Reset Filter</button>
+                        <a class="filter-reset" href="<?= $safeBaseUrl ?>/admin/transaksi">
+                            <span aria-hidden="true">&#8635;</span>
+                            Reset Filter
+                        </a>
                     </form>
 
                     <div class="laundry-table-wrap">
@@ -183,6 +217,11 @@ ob_start();
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php if ($transactions === []): ?>
+                                    <tr>
+                                        <td class="laundry-empty-row" colspan="10">Transaksi tidak ditemukan. Coba ubah atau reset filter.</td>
+                                    </tr>
+                                <?php endif; ?>
                                 <?php foreach ($transactions as $row): ?>
                                     <tr>
                                         <td><?= $row['no'] ?></td>
@@ -242,7 +281,11 @@ ob_start();
                             <h3>Rekap Status</h3>
                             <div class="laundry-status-list">
                                 <?php foreach ($statusSummary as $status): ?>
-                                    <p><span class="<?= htmlspecialchars($status['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span><?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?><strong><?= $status['value'] ?></strong><small>(<?= htmlspecialchars($status['percent'], ENT_QUOTES, 'UTF-8') ?>)</small></p>
+                                    <?php
+                                    $statusLabel = (string) ($status['label'] ?? '');
+                                    $statusColor = $statusColors[$statusLabel] ?? '#2f80ed';
+                                    ?>
+                                    <p style="--status-color: <?= htmlspecialchars($statusColor, ENT_QUOTES, 'UTF-8') ?>;"><span class="<?= htmlspecialchars($status['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?><strong><?= $status['value'] ?></strong><small>(<?= htmlspecialchars($status['percent'], ENT_QUOTES, 'UTF-8') ?>)</small></p>
                                 <?php endforeach; ?>
                             </div>
                         </div>

@@ -161,11 +161,13 @@ class LaundryRepository extends Model
 
             return [
                 'id' => (int) $row['id_paket'],
+                'code' => $this->formatPackageCode((int) $row['id_paket']),
                 'name' => $row['nama_paket'],
                 'description' => $row['deskripsi'] ?: 'Layanan laundry tersedia',
                 'price' => $this->formatCurrency((float) $row['harga_per_kg']) . ($category === 'Kiloan' ? ' / kg' : ''),
                 'raw_price' => (float) $row['harga_per_kg'],
                 'duration' => ((int) $row['estimasi_hari']) . ' hari',
+                'duration_days' => (int) $row['estimasi_hari'],
                 'category' => $category,
                 'tone' => $row['tone'] ?: 'blue',
                 'icon' => $row['ikon'] ?: '&#128085;',
@@ -177,7 +179,12 @@ class LaundryRepository extends Model
 
     public function nextPackageCode(): string
     {
-        $nextId = (int) $this->pdo()->query('SELECT COALESCE(MAX(id_paket), 0) + 1 FROM paket_laundry')->fetchColumn();
+        $tableStatus = $this->pdo()->query("SHOW TABLE STATUS LIKE 'paket_laundry'")->fetch();
+        $nextId = is_array($tableStatus) ? (int) ($tableStatus['Auto_increment'] ?? 0) : 0;
+
+        if ($nextId <= 0) {
+            $nextId = (int) $this->pdo()->query('SELECT COALESCE(MAX(id_paket), 0) + 1 FROM paket_laundry')->fetchColumn();
+        }
 
         return $this->formatPackageCode($nextId);
     }
@@ -268,6 +275,32 @@ class LaundryRepository extends Model
             'open' => (int) $pdo->query("SELECT COUNT(*) FROM transaksi WHERE status_cucian NOT IN ('Selesai', 'Diambil')")->fetchColumn(),
             'completed' => (int) $pdo->query("SELECT COUNT(*) FROM transaksi WHERE status_cucian IN ('Selesai', 'Diambil')")->fetchColumn(),
             'revenue' => (float) $pdo->query('SELECT COALESCE(SUM(total_harga), 0) FROM transaksi')->fetchColumn(),
+        ];
+    }
+
+    public function transactionSummary(?array $range = null, array $filters = []): array
+    {
+        [$dateCondition, $params] = $this->dateRangeCondition('t.tanggal_masuk', $range, 'transaction_summary');
+        [$filterConditions, $filterParams] = $this->orderFilterConditions($filters, 'transaction_summary');
+        $where = $this->whereClause(array_merge([$dateCondition], $filterConditions));
+        $params = array_merge($params, $filterParams);
+
+        $statement = $this->pdo()->prepare(
+            'SELECT
+                COUNT(DISTINCT t.no_nota) AS total,
+                COALESCE(SUM(t.total_harga), 0) AS revenue
+             FROM transaksi t
+             JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
+             ' . $where
+        );
+        $this->bindStatementParams($statement, $params);
+        $statement->execute();
+
+        $summary = $statement->fetch();
+
+        return [
+            'total' => is_array($summary) ? (int) $summary['total'] : 0,
+            'revenue' => is_array($summary) ? (float) $summary['revenue'] : 0.0,
         ];
     }
 
@@ -576,24 +609,10 @@ class LaundryRepository extends Model
 
     public function createPackage(array $payload, int $adminId): string
     {
-        $packageName = trim((string) ($payload['package_name'] ?? ''));
-        $category = trim((string) ($payload['category'] ?? ''));
-        $price = max(0, (float) ($payload['price'] ?? 0));
-        $duration = max(0, (int) ($payload['duration'] ?? 0));
-        $unitLabel = trim((string) ($payload['unit_label'] ?? ''));
-        $status = trim((string) ($payload['status'] ?? 'Aktif'));
-        $description = trim((string) ($payload['description'] ?? ''));
-
-        if ($packageName === '' || $category === '' || $price <= 0 || $duration <= 0 || $unitLabel === '') {
-            throw new \InvalidArgumentException('Data paket laundry belum lengkap.');
-        }
-
-        $category = in_array($category, ['Kiloan', 'Khusus'], true) ? $category : 'Kiloan';
-        $status = $status === 'Nonaktif' ? 'Nonaktif' : 'Aktif';
-        $description = $description !== '' ? substr($description, 0, 200) : null;
+        $package = $this->validatedPackagePayload($payload);
 
         $existing = $this->pdo()->prepare('SELECT id_paket FROM paket_laundry WHERE nama_paket = :name LIMIT 1');
-        $existing->execute(['name' => $packageName]);
+        $existing->execute(['name' => $package['name']]);
 
         if ($existing->fetchColumn()) {
             throw new \InvalidArgumentException('Nama paket sudah terdaftar.');
@@ -606,19 +625,116 @@ class LaundryRepository extends Model
                 (:name, :price, :duration, :status, :description, :category, :tone, :icon, :unit_label)'
         );
         $insert->execute([
-            'name' => $packageName,
-            'price' => $price,
-            'duration' => $duration,
-            'status' => $status,
-            'description' => $description,
-            'category' => $category,
-            'tone' => $this->packageTone($category, $unitLabel),
-            'icon' => $this->packageIcon($category, $unitLabel),
-            'unit_label' => $unitLabel,
+            'name' => $package['name'],
+            'price' => $package['price'],
+            'duration' => $package['duration'],
+            'status' => $package['status'],
+            'description' => $package['description'],
+            'category' => $package['category'],
+            'tone' => $this->packageTone($package['category'], $package['unit_label']),
+            'icon' => $this->packageIcon($package['category'], $package['unit_label']),
+            'unit_label' => $package['unit_label'],
         ]);
 
         $packageCode = $this->formatPackageCode((int) $this->pdo()->lastInsertId());
-        $this->recordActivity($adminId, 'paket', 'Paket laundry baru ditambahkan', $packageCode . ' - ' . $packageName, $packageCode);
+        $this->recordActivity($adminId, 'paket', 'Paket laundry baru ditambahkan', $packageCode . ' - ' . $package['name'], $packageCode);
+
+        return $packageCode;
+    }
+
+    public function updatePackage(array $payload, int $adminId): string
+    {
+        $packageId = max(0, (int) ($payload['package_id'] ?? 0));
+
+        if ($packageId <= 0) {
+            throw new \InvalidArgumentException('Paket laundry tidak valid.');
+        }
+
+        $current = $this->findPackage((string) $packageId);
+
+        if ($current === null) {
+            throw new \InvalidArgumentException('Paket laundry tidak ditemukan.');
+        }
+
+        $package = $this->validatedPackagePayload($payload);
+        $existing = $this->pdo()->prepare(
+            'SELECT id_paket
+             FROM paket_laundry
+             WHERE nama_paket = :name
+                AND id_paket <> :id
+             LIMIT 1'
+        );
+        $existing->execute([
+            'name' => $package['name'],
+            'id' => $packageId,
+        ]);
+
+        if ($existing->fetchColumn()) {
+            throw new \InvalidArgumentException('Nama paket sudah terdaftar.');
+        }
+
+        $update = $this->pdo()->prepare(
+            'UPDATE paket_laundry
+             SET nama_paket = :name,
+                 harga_per_kg = :price,
+                 estimasi_hari = :duration,
+                 status_aktif = :status,
+                 deskripsi = :description,
+                 kategori = :category,
+                 tone = :tone,
+                 ikon = :icon,
+                 unit_label = :unit_label
+             WHERE id_paket = :id'
+        );
+        $update->execute([
+            'id' => $packageId,
+            'name' => $package['name'],
+            'price' => $package['price'],
+            'duration' => $package['duration'],
+            'status' => $package['status'],
+            'description' => $package['description'],
+            'category' => $package['category'],
+            'tone' => $this->packageTone($package['category'], $package['unit_label']),
+            'icon' => $this->packageIcon($package['category'], $package['unit_label']),
+            'unit_label' => $package['unit_label'],
+        ]);
+
+        $packageCode = $this->formatPackageCode($packageId);
+        $this->recordActivity($adminId, 'paket', 'Paket laundry diperbarui', $packageCode . ' - ' . $package['name'], $packageCode);
+
+        return $packageCode;
+    }
+
+    public function deletePackage(int $packageId, int $adminId): string
+    {
+        if ($packageId <= 0) {
+            throw new \InvalidArgumentException('Paket laundry tidak valid.');
+        }
+
+        $package = $this->findPackage((string) $packageId);
+
+        if ($package === null) {
+            throw new \InvalidArgumentException('Paket laundry tidak ditemukan.');
+        }
+
+        $usedCount = (int) $this->scalar(
+            'SELECT COUNT(*) FROM detail_transaksi WHERE id_paket = :id',
+            ['id' => $packageId]
+        );
+
+        if ($usedCount > 0) {
+            throw new \InvalidArgumentException('Paket sudah digunakan pada transaksi, sehingga tidak bisa dihapus. Ubah status menjadi Nonaktif jika layanan tidak ingin dipakai lagi.');
+        }
+
+        $delete = $this->pdo()->prepare('DELETE FROM paket_laundry WHERE id_paket = :id');
+        $delete->execute(['id' => $packageId]);
+
+        if ($delete->rowCount() === 0) {
+            throw new \InvalidArgumentException('Paket laundry tidak ditemukan.');
+        }
+
+        $packageCode = $this->formatPackageCode($packageId);
+        $this->recordActivity($adminId, 'paket', 'Paket laundry dihapus', $packageCode . ' - ' . $package['nama_paket'], $packageCode);
 
         return $packageCode;
     }
@@ -935,6 +1051,31 @@ class LaundryRepository extends Model
     private function formatCustomerCode(int $customerId): string
     {
         return 'PLG-' . str_pad((string) $customerId, 4, '0', STR_PAD_LEFT);
+    }
+
+    private function validatedPackagePayload(array $payload): array
+    {
+        $packageName = trim((string) ($payload['package_name'] ?? ''));
+        $category = trim((string) ($payload['category'] ?? ''));
+        $price = max(0, (float) ($payload['price'] ?? 0));
+        $duration = max(0, (int) ($payload['duration'] ?? 0));
+        $unitLabel = trim((string) ($payload['unit_label'] ?? ''));
+        $status = trim((string) ($payload['status'] ?? 'Aktif'));
+        $description = trim((string) ($payload['description'] ?? ''));
+
+        if ($packageName === '' || $category === '' || $price <= 0 || $duration <= 0 || $unitLabel === '') {
+            throw new \InvalidArgumentException('Data paket laundry belum lengkap.');
+        }
+
+        return [
+            'name' => $packageName,
+            'price' => $price,
+            'duration' => $duration,
+            'status' => $status === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
+            'description' => $description !== '' ? substr($description, 0, 200) : null,
+            'category' => in_array($category, ['Kiloan', 'Khusus'], true) ? $category : 'Kiloan',
+            'unit_label' => $unitLabel,
+        ];
     }
 
     private function packageTone(string $category, string $unitLabel): string

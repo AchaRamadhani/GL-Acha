@@ -2073,9 +2073,10 @@ main {
 }
 
 .admin-dashboard-page {
+    --dashboard-sidebar-width: clamp(210px, 13vw, 230px);
     min-height: 100vh;
     display: grid;
-    grid-template-columns: clamp(210px, 13vw, 230px) minmax(0, 1fr);
+    grid-template-columns: var(--dashboard-sidebar-width) minmax(0, 1fr);
     color: #06154a;
     background: #f6f9fd;
     font-size: 14px;
@@ -2085,14 +2086,18 @@ main {
 }
 
 .dashboard-sidebar {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    inset: 0 auto 0 0;
     display: flex;
     flex-direction: column;
+    width: var(--dashboard-sidebar-width);
     height: 100vh;
+    height: 100dvh;
     padding: 20px 13px 34px;
     border-right: 1px solid #dde7f4;
     background: #ffffff;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     z-index: 30;
 }
 
@@ -2160,6 +2165,7 @@ main {
 }
 
 .dashboard-content {
+    grid-column: 2;
     min-width: 0;
     max-width: 100%;
     overflow-x: hidden;
@@ -3685,14 +3691,21 @@ main {
 
 .laundry-cucian-page .laundry-filter-bar {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) 160px 210px 276px 128px;
+    grid-template-columns:
+        minmax(150px, 1.35fr)
+        minmax(118px, 0.72fr)
+        minmax(150px, 0.9fr)
+        minmax(210px, 1fr)
+        minmax(82px, 0.48fr)
+        minmax(106px, 0.58fr);
     align-items: center;
-    gap: 12px;
-    padding: 14px;
+    gap: 8px;
+    padding: 10px;
 }
 
 .laundry-cucian-page .laundry-search-field {
     min-width: 0;
+    grid-column: auto;
 }
 
 .laundry-cucian-page .laundry-filter-bar > select {
@@ -3706,6 +3719,7 @@ main {
 .laundry-cucian-page .date-filter {
     min-width: 0;
     width: 100%;
+    grid-column: auto;
 }
 
 .laundry-cucian-page .filter-primary,
@@ -3714,6 +3728,8 @@ main {
     min-height: 42px;
     font-size: 13px;
     font-weight: 500;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .laundry-cucian-page .filter-primary {
@@ -3721,17 +3737,17 @@ main {
 }
 
 .laundry-cucian-page .filter-reset {
-    grid-column: 1 / -1;
     width: 100%;
-    padding: 0 16px;
+    padding: 0 12px;
     border-color: #d6e1ef;
     background: #ffffff;
     text-decoration: none;
+    text-overflow: ellipsis;
 }
 
 .laundry-cucian-page .laundry-search-field input,
 .laundry-cucian-page .laundry-filter-bar > select,
-.laundry-cucian-page .service-select-shell select.service-type-select,
+.laundry-cucian-page .laundry-filter-bar .service-select-shell select.service-type-select,
 .laundry-cucian-page .date-filter,
 .laundry-cucian-page .filter-reset {
     height: 42px;
@@ -3742,9 +3758,9 @@ main {
 
 .laundry-cucian-page .date-filter-range {
     display: grid;
-    grid-template-columns: 18px minmax(0, 1fr) 8px minmax(0, 1fr);
-    gap: 8px;
-    padding: 0 10px;
+    grid-template-columns: 16px minmax(78px, 1fr) 7px minmax(78px, 1fr);
+    gap: 5px;
+    padding: 0 8px;
 }
 
 .laundry-cucian-page .date-filter-range > span:first-child {
@@ -3769,21 +3785,17 @@ main {
     text-align: center;
 }
 
-.laundry-cucian-page .service-select-shell select.service-type-select {
+.laundry-cucian-page .laundry-filter-bar .service-select-shell select.service-type-select {
     height: 42px;
-    padding-right: 34px;
-    padding-left: 42px;
-    font-weight: 500;
+    padding: 0 36px 0 12px;
+    font-weight: 400;
+    -webkit-appearance: auto;
+    appearance: auto;
 }
 
-.laundry-cucian-page .service-select-icon {
-    left: 10px;
-    width: 22px;
-    height: 22px;
-}
-
-.laundry-cucian-page .service-select-chevron {
-    right: 10px;
+.laundry-cucian-page .laundry-filter-bar .service-select-icon,
+.laundry-cucian-page .laundry-filter-bar .service-select-chevron {
+    display: none;
 }
 
 .service-select-shell {
@@ -3818,7 +3830,7 @@ main {
     border-radius: 8px;
     color: #06154a;
     background: #ffffff;
-    font-weight: 700;
+    font-weight: 400;
     outline: none;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -3875,7 +3887,8 @@ main {
 .service-type-select option {
     color: #06154a;
     background: #ffffff;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 400;
 }
 
 .service-type-select option:checked {
@@ -4388,34 +4401,39 @@ body.laundry-modal-open {
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    background: var(--status-color, #2f80ed);
 }
 
 .laundry-status-list .blue-light {
-    background: #5bb4ef;
+    background: var(--status-color, #2f80ed);
 }
 
 .laundry-status-list .orange {
-    background: #ffad2f;
+    background: var(--status-color, #f59e0b);
 }
 
 .laundry-status-list .blue {
-    background: #2f80ed;
+    background: var(--status-color, #2f80ed);
 }
 
 .laundry-status-list .teal {
-    background: #35c3c5;
+    background: var(--status-color, #32b7c7);
+}
+
+.laundry-status-list .cyan {
+    background: var(--status-color, #0ea5d8);
 }
 
 .laundry-status-list .amber {
-    background: #ff8f2f;
+    background: var(--status-color, #f59e0b);
 }
 
 .laundry-status-list .green {
-    background: #39b86a;
+    background: var(--status-color, #28a765);
 }
 
 .laundry-status-list .purple {
-    background: #7047d9;
+    background: var(--status-color, #7047d9);
 }
 
 .laundry-cucian-page .laundry-status-wrap {
@@ -4518,8 +4536,140 @@ body.laundry-modal-open {
     grid-template-columns: minmax(0, 1fr) minmax(250px, 280px);
 }
 
+.transaction-admin-page .transaction-filter-bar {
+    display: grid;
+    grid-template-columns:
+        minmax(220px, 1.35fr)
+        minmax(140px, 0.72fr)
+        minmax(190px, 0.95fr)
+        minmax(238px, 1.1fr)
+        minmax(94px, 0.45fr);
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+}
+
+.transaction-filter-bar .laundry-search-field,
+.transaction-filter-bar > select,
+.transaction-filter-bar .service-select-shell,
 .transaction-filter-bar .date-filter {
-    flex-basis: 210px;
+    width: 100%;
+    min-width: 0;
+    flex: initial;
+}
+
+.transaction-filter-bar .date-filter {
+    grid-column: auto;
+}
+
+.transaction-filter-bar .service-select-shell select.service-type-select {
+    height: 42px;
+    min-height: 42px;
+    padding: 0 36px 0 12px;
+    font-weight: 500;
+    -webkit-appearance: auto;
+    appearance: auto;
+}
+
+.transaction-filter-bar .service-select-icon,
+.transaction-filter-bar .service-select-chevron {
+    display: none;
+}
+
+.transaction-filter-bar .laundry-search-field input,
+.transaction-filter-bar > select,
+.transaction-filter-bar .date-filter,
+.transaction-filter-bar .filter-reset {
+    height: 42px;
+    min-height: 42px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.transaction-filter-bar .date-filter-range {
+    display: grid;
+    grid-template-columns: 16px minmax(86px, 1fr) 7px minmax(86px, 1fr);
+    gap: 5px;
+    padding: 0 8px;
+}
+
+.transaction-filter-bar .date-filter-range > span:first-child {
+    color: #0758d8;
+    font-size: 13px;
+}
+
+.transaction-filter-bar .date-filter-range input {
+    min-width: 0;
+    height: 40px;
+    border: 0;
+    color: #06154a;
+    background: transparent;
+    font: inherit;
+    font-weight: 500;
+    outline: 0;
+}
+
+.transaction-filter-bar .date-filter-separator {
+    color: #63708a;
+    font-weight: 500;
+    text-align: center;
+}
+
+.transaction-filter-bar .filter-primary,
+.transaction-filter-bar .filter-reset {
+    width: 100%;
+    height: 42px;
+    min-height: 42px;
+    font-size: 13px;
+}
+
+.transaction-filter-bar .filter-primary {
+    padding: 0 16px;
+    font-weight: 600;
+}
+
+.transaction-filter-bar .filter-reset {
+    grid-column: 1 / -1;
+    padding: 0 12px;
+    border-color: #d6e1ef;
+    background: #ffffff;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+@media (max-width: 1180px) {
+    .transaction-admin-page .transaction-filter-bar {
+        grid-template-columns:
+            minmax(0, 1.12fr)
+            minmax(0, 0.78fr)
+            minmax(0, 1fr);
+    }
+
+    .transaction-filter-bar .date-filter {
+        grid-column: span 2;
+    }
+
+    .transaction-filter-bar .filter-reset {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 720px) {
+    .transaction-admin-page .transaction-filter-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .transaction-filter-bar .date-filter {
+        grid-column: auto;
+    }
+
+    .transaction-filter-bar .date-filter-range {
+        grid-template-columns: minmax(0, 1fr) 7px minmax(0, 1fr);
+    }
+
+    .transaction-filter-bar .date-filter-range > span:first-child {
+        display: none;
+    }
 }
 
 .transaction-table {
@@ -4619,6 +4769,7 @@ body.laundry-modal-open {
     margin: 0;
     color: #33426a;
     font-size: 12px;
+    font-weight: 500;
 }
 
 .transaction-metric-list strong {
@@ -4626,6 +4777,8 @@ body.laundry-modal-open {
     margin-top: 4px;
     color: #0758d8;
     font-size: 16px;
+    font-weight: 600;
+    line-height: 1.25;
 }
 
 .transaction-metric-list .green + p strong {
@@ -4650,10 +4803,11 @@ body.laundry-modal-open {
     margin: 0 0 10px;
     color: #06154a;
     font-size: 13px;
+    font-weight: 600;
 }
 
 .laundry-status-list .blue-dark {
-    background: #1251c9;
+    background: var(--status-color, #0ea5d8);
 }
 
 .transaction-activity-list {
@@ -4681,12 +4835,16 @@ body.laundry-modal-open {
     object-position: center;
 }
 
+.transaction-activity-list .activity-item strong {
+    font-weight: 600;
+}
+
 .view-all-activity {
     display: block;
     margin-top: 18px;
     color: #0758d8;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 600;
     text-align: center;
 }
 
@@ -5126,6 +5284,20 @@ body.laundry-modal-open {
 
 .status-filter-bar .date-filter {
     flex: 0 1 250px;
+}
+
+.status-filter-bar .service-select-shell select.service-type-select {
+    height: 42px;
+    min-height: 42px;
+    padding: 0 36px 0 12px;
+    font-weight: 400;
+    -webkit-appearance: auto;
+    appearance: auto;
+}
+
+.status-filter-bar .service-select-icon,
+.status-filter-bar .service-select-chevron {
+    display: none;
 }
 
 .status-workspace {
@@ -6165,7 +6337,13 @@ body.logout-modal-open {
 
     .laundry-cucian-page .laundry-filter-bar {
         display: grid;
-        grid-template-columns: minmax(220px, 1fr) 160px 210px 276px 128px;
+        grid-template-columns:
+            minmax(150px, 1.35fr)
+            minmax(118px, 0.72fr)
+            minmax(150px, 0.9fr)
+            minmax(210px, 1fr)
+            minmax(82px, 0.48fr)
+            minmax(106px, 0.58fr);
         align-items: center;
     }
 
@@ -6187,7 +6365,6 @@ body.logout-modal-open {
     }
 
     .laundry-cucian-page .filter-reset {
-        grid-column: 1 / -1;
         justify-self: stretch;
     }
 
@@ -6236,7 +6413,8 @@ body.logout-modal-open {
 
 @media (max-width: 1180px) {
     .admin-dashboard-page {
-        grid-template-columns: 220px minmax(0, 1fr);
+        --dashboard-sidebar-width: 220px;
+        grid-template-columns: var(--dashboard-sidebar-width) minmax(0, 1fr);
     }
 
     .dashboard-sidebar {
@@ -6268,6 +6446,23 @@ body.logout-modal-open {
     .laundry-search-field,
     .date-filter {
         grid-column: span 2;
+    }
+
+    .laundry-cucian-page .laundry-filter-bar {
+        grid-template-columns:
+            minmax(126px, 1.24fr)
+            minmax(96px, 0.72fr)
+            minmax(126px, 0.9fr)
+            minmax(168px, 1fr)
+            minmax(62px, 0.46fr)
+            minmax(76px, 0.56fr);
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .laundry-cucian-page .laundry-search-field,
+    .laundry-cucian-page .date-filter {
+        grid-column: auto;
     }
 
     .admin-login-header {
@@ -6312,14 +6507,16 @@ body.logout-modal-open {
 
 @media (max-width: 980px) {
     .admin-dashboard-page {
+        --dashboard-sidebar-width: 250px;
         grid-template-columns: 1fr;
     }
 
+    .dashboard-content {
+        grid-column: 1;
+    }
+
     .dashboard-sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: 250px;
+        width: var(--dashboard-sidebar-width);
         transform: translateX(-104%);
         transition: transform 0.25s ease;
         box-shadow: 22px 0 50px rgba(15, 23, 42, 0.16);
@@ -6394,8 +6591,16 @@ body.logout-modal-open {
 
     .laundry-cucian-page .laundry-filter-bar {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        align-items: stretch;
+        grid-template-columns:
+            minmax(0, 1.35fr)
+            minmax(0, 0.78fr)
+            minmax(0, 0.96fr)
+            minmax(0, 1.25fr)
+            minmax(54px, 0.5fr)
+            minmax(68px, 0.6fr);
+        align-items: center;
+        gap: 6px;
+        padding: 8px;
     }
 
     .laundry-cucian-page .filter-primary,
@@ -6702,12 +6907,56 @@ body.logout-modal-open {
     }
 
     .laundry-cucian-page .laundry-filter-bar {
-        grid-template-columns: 1fr;
+        grid-template-columns:
+            minmax(0, 1.35fr)
+            minmax(0, 0.78fr)
+            minmax(0, 0.98fr)
+            minmax(0, 1.25fr)
+            minmax(42px, 0.5fr)
+            minmax(42px, 0.6fr);
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .laundry-cucian-page .laundry-search-field span,
+    .laundry-cucian-page .laundry-filter-bar .service-select-icon {
+        display: none;
+    }
+
+    .laundry-cucian-page .laundry-search-field input {
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    .laundry-cucian-page .laundry-filter-bar .service-select-shell select.service-type-select {
+        padding-right: 22px;
+        padding-left: 8px;
+    }
+
+    .laundry-cucian-page .laundry-filter-bar .service-select-chevron {
+        right: 7px;
+    }
+
+    .laundry-cucian-page .date-filter-range {
+        grid-template-columns: minmax(0, 1fr) 5px minmax(0, 1fr);
+        gap: 3px;
+        padding: 0 5px;
+    }
+
+    .laundry-cucian-page .date-filter-range > span:first-child {
+        display: none;
+    }
+
+    .laundry-cucian-page .filter-primary,
+    .laundry-cucian-page .filter-reset {
+        padding-right: 6px;
+        padding-left: 6px;
+        font-size: 12px;
     }
 
     .laundry-filter-bar .service-select-shell {
         width: 100%;
-        flex-basis: 100%;
+        flex-basis: auto;
     }
 
     .laundry-cucian-page .laundry-search-field,
@@ -7837,16 +8086,17 @@ body.logout-modal-open {
 
 @media (max-width: 560px) {
     .laundry-cucian-page .date-filter-range {
-        grid-template-columns: 18px minmax(0, 1fr);
-        row-gap: 2px;
+        grid-template-columns: minmax(0, 1fr) 5px minmax(0, 1fr);
+        gap: 3px;
+        padding: 0 5px;
     }
 
     .laundry-cucian-page .date-filter-separator {
-        display: none;
+        display: block;
     }
 
     .laundry-cucian-page .date-filter-range input:last-child {
-        grid-column: 2;
+        grid-column: auto;
     }
 
     .laundry-modal-backdrop {

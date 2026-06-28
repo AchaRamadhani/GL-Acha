@@ -28,6 +28,7 @@ $packages = $packages ?? [
     ['name' => 'Treatment', 'description' => 'Perawatan khusus noda dan bahan', 'price' => 'Rp 60.000', 'duration' => '1-2 hari', 'category' => 'Khusus', 'tone' => 'blue', 'icon' => '&#128737;', 'unit' => 'Perawatan khusus'],
 ];
 
+$activePackages = array_filter($packages, static fn ($package) => ($package['status'] ?? 'Aktif') === 'Aktif');
 $kiloanPackages = array_filter($packages, static fn ($package) => $package['category'] === 'Kiloan');
 $specialPackages = array_filter($packages, static fn ($package) => $package['category'] === 'Khusus');
 $packageTotal = max(1, count($packages));
@@ -36,7 +37,7 @@ $specialPercent = count($specialPackages) / $packageTotal * 100;
 
 $stats = [
     ['tone' => 'blue', 'icon' => '&#128230;', 'label' => 'Total Paket', 'value' => count($packages) . ' Paket', 'meta' => 'Semua paket tersedia'],
-    ['tone' => 'green', 'icon' => '&#128737;', 'label' => 'Paket Aktif', 'value' => count($packages) . ' Paket', 'meta' => '100% dari total paket'],
+    ['tone' => 'green', 'icon' => '&#128737;', 'label' => 'Paket Aktif', 'value' => count($activePackages) . ' Paket', 'meta' => number_format(count($activePackages) / $packageTotal * 100, 0, ',', '.') . '% dari total paket'],
     ['tone' => 'purple', 'icon' => '&#9878;', 'label' => 'Layanan Kiloan', 'value' => count($kiloanPackages) . ' Paket', 'meta' => 'Minimal berat 3 kg'],
     ['tone' => 'orange', 'icon' => '&#9734;', 'label' => 'Layanan Khusus', 'value' => count($specialPackages) . ' Paket', 'meta' => 'Satuan, Express, Treatment'],
 ];
@@ -45,6 +46,19 @@ $categorySummary = [
     ['label' => 'Layanan Kiloan', 'value' => count($kiloanPackages), 'percent' => number_format($kiloanPercent, 1, ',', '.') . '%', 'width' => number_format($kiloanPercent, 1, '.', '') . '%', 'tone' => 'blue'],
     ['label' => 'Layanan Khusus', 'value' => count($specialPackages), 'percent' => number_format($specialPercent, 1, ',', '.') . '%', 'width' => number_format($specialPercent, 1, '.', '') . '%', 'tone' => 'purple'],
 ];
+
+$packageCrudData = array_map(static fn ($package): array => [
+    'id' => (int) ($package['id'] ?? 0),
+    'code' => (string) ($package['code'] ?? ''),
+    'name' => (string) ($package['name'] ?? ''),
+    'description' => (string) ($package['description'] ?? ''),
+    'price' => (float) ($package['raw_price'] ?? 0),
+    'duration' => (string) ($package['duration_days'] ?? ''),
+    'category' => (string) ($package['category'] ?? ''),
+    'unit' => (string) ($package['unit'] ?? ''),
+    'status' => (string) ($package['status'] ?? 'Aktif'),
+], $packages);
+$packageCrudJson = json_encode($packageCrudData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 
 ob_start();
 ?>
@@ -84,7 +98,7 @@ ob_start();
                     <h1>Paket Laundry</h1>
                     <p>Kelola daftar layanan dan paket laundry yang tersedia di Ghava Laundry.</p>
                 </div>
-                <button class="add-laundry-button package-add-button" type="button" data-laundry-modal-open="package">
+                <button class="add-laundry-button package-add-button" type="button" data-laundry-modal-open="package" data-package-create>
                     <span aria-hidden="true">+</span>
                     Tambah Paket
                 </button>
@@ -131,7 +145,7 @@ ob_start();
 
                     <div class="package-card-grid">
                         <?php foreach ($packages as $package): ?>
-                            <article class="package-card <?= htmlspecialchars($package['tone'], ENT_QUOTES, 'UTF-8') ?>">
+                            <article class="package-card <?= htmlspecialchars($package['tone'], ENT_QUOTES, 'UTF-8') ?>" data-package-card data-package-id="<?= (int) ($package['id'] ?? 0) ?>">
                                 <span class="package-icon" aria-hidden="true"><?= $package['icon'] ?></span>
                                 <div class="package-card-body">
                                     <div class="package-title-row">
@@ -152,14 +166,18 @@ ob_start();
                                         <?php endif; ?>
                                     </div>
                                     <div class="package-actions" aria-label="Aksi paket <?= htmlspecialchars($package['name'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <button class="view" type="button"><span aria-hidden="true">&#128065;</span>Lihat</button>
-                                        <button class="edit" type="button"><span aria-hidden="true">&#9998;</span>Edit</button>
-                                        <button class="delete" type="button"><span aria-hidden="true">&#128465;</span>Hapus</button>
+                                        <button class="view" type="button" data-package-action="view" data-package-id="<?= (int) ($package['id'] ?? 0) ?>"><span aria-hidden="true">&#128065;</span>Lihat</button>
+                                        <button class="edit" type="button" data-package-action="edit" data-package-id="<?= (int) ($package['id'] ?? 0) ?>"><span aria-hidden="true">&#9998;</span>Edit</button>
+                                        <button class="delete" type="button" data-package-action="delete" data-package-id="<?= (int) ($package['id'] ?? 0) ?>"><span aria-hidden="true">&#128465;</span>Hapus</button>
                                     </div>
                                 </div>
                             </article>
                         <?php endforeach; ?>
                     </div>
+                    <form action="<?= $safeBaseUrl ?>/admin/paket-laundry/delete" method="post" data-package-delete-form hidden>
+                        <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+                        <input type="hidden" name="package_id" value="">
+                    </form>
                 </div>
 
                 <aside class="laundry-side-panel package-side-panel">
@@ -202,21 +220,24 @@ ob_start();
             </section>
         </main>
 
+        <script id="packageCrudData" type="application/json"><?= $packageCrudJson ?: '[]' ?></script>
+
         <div class="laundry-modal-backdrop package-modal-backdrop" data-laundry-modal="package" hidden>
             <section class="laundry-dialog package-dialog" role="dialog" aria-modal="true" aria-labelledby="packageModalTitle">
                 <button class="laundry-modal-close" type="button" aria-label="Tutup form tambah paket" data-laundry-modal-close>&times;</button>
 
-                <header class="laundry-modal-header">
+                <header class="laundry-modal-header" data-package-modal-header>
                     <h2 id="packageModalTitle">Tambah Paket Laundry</h2>
                     <p>Masukkan data paket laundry dengan lengkap.</p>
                 </header>
 
-                <form class="laundry-modal-form package-modal-form" action="<?= $safeBaseUrl ?>/admin/paket-laundry" method="post" data-laundry-form>
+                <form class="laundry-modal-form package-modal-form" action="<?= $safeBaseUrl ?>/admin/paket-laundry" method="post" data-laundry-form data-package-form data-create-action="<?= $safeBaseUrl ?>/admin/paket-laundry" data-update-action="<?= $safeBaseUrl ?>/admin/paket-laundry/update">
                     <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+                    <input type="hidden" name="package_id" value="" data-package-id-field>
 
                     <div class="laundry-modal-field package-code-field">
                         <label for="packageCode">ID Paket</label>
-                        <input id="packageCode" type="text" value="<?= $nextPackageCodeSafe ?>" readonly>
+                        <input id="packageCode" type="text" value="<?= $nextPackageCodeSafe ?>" readonly data-package-code-field data-next-package-code="<?= $nextPackageCodeSafe ?>">
                         <small>ID paket dibuat otomatis</small>
                     </div>
 
@@ -289,9 +310,9 @@ ob_start();
                                 <span aria-hidden="true">&times;</span>
                                 Batal
                             </button>
-                            <button class="laundry-save-button" type="submit">
+                            <button class="laundry-save-button" type="submit" data-package-save-button>
                                 <span aria-hidden="true">&#128190;</span>
-                                Simpan Paket
+                                <span data-package-submit-label>Simpan Paket</span>
                             </button>
                         </div>
                     </div>

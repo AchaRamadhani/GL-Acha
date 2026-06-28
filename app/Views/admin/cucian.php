@@ -24,26 +24,36 @@ $stats = $stats ?? [
 ];
 
 $laundryRows = $laundryRows ?? [
-    ['no' => 1, 'nota' => 'INV-250521-001', 'name' => 'Budi Santoso', 'phone' => '0812-3456-7890', 'service' => 'Cuci Kering', 'weight' => '5,0 kg', 'in' => '21 Mei 2026', 'eta' => '23 Mei 2026', 'status' => 'Antrean', 'tone' => 'cyan', 'total' => 'Rp 45.000'],
-    ['no' => 2, 'nota' => 'INV-250521-002', 'name' => 'Siti Aisyah', 'phone' => '0813-2345-6789', 'service' => 'Cuci Lipat', 'weight' => '4,2 kg', 'in' => '21 Mei 2026', 'eta' => '22 Mei 2026', 'status' => 'Diproses', 'tone' => 'orange', 'total' => 'Rp 35.000'],
-    ['no' => 3, 'nota' => 'INV-250521-003', 'name' => 'Andi Wijaya', 'phone' => '0811-2233-4455', 'service' => 'Cuci Setrika Lipat', 'weight' => '6,0 kg', 'in' => '21 Mei 2026', 'eta' => '23 Mei 2026', 'status' => 'Dicuci', 'tone' => 'blue', 'total' => 'Rp 60.000'],
+    ['no' => 1, 'nota' => 'INV-250521-001', 'name' => 'Budi Santoso', 'phone' => '0812-3456-7890', 'service' => 'Cuci Kering', 'weight' => '5,0 kg', 'in' => '21 Mei 2026', 'eta' => '23 Mei 2026', 'status' => 'Antrean', 'tone' => 'blue', 'total' => 'Rp 45.000'],
+    ['no' => 2, 'nota' => 'INV-250521-002', 'name' => 'Siti Aisyah', 'phone' => '0813-2345-6789', 'service' => 'Cuci Lipat', 'weight' => '4,2 kg', 'in' => '21 Mei 2026', 'eta' => '22 Mei 2026', 'status' => 'Diproses', 'tone' => 'green', 'total' => 'Rp 35.000'],
+    ['no' => 3, 'nota' => 'INV-250521-003', 'name' => 'Andi Wijaya', 'phone' => '0811-2233-4455', 'service' => 'Cuci Setrika Lipat', 'weight' => '6,0 kg', 'in' => '21 Mei 2026', 'eta' => '23 Mei 2026', 'status' => 'Dicuci', 'tone' => 'teal', 'total' => 'Rp 60.000'],
     ['no' => 4, 'nota' => 'INV-250520-015', 'name' => 'Dewi Lestari', 'phone' => '0812-1122-3344', 'service' => 'Setrika Saja', 'weight' => '3,0 kg', 'in' => '20 Mei 2026', 'eta' => '21 Mei 2026', 'status' => 'Disetrika', 'tone' => 'orange', 'total' => 'Rp 30.000'],
-    ['no' => 5, 'nota' => 'INV-250520-014', 'name' => 'Rina Marlina', 'phone' => '0813-9988-7766', 'service' => 'Pengering & Lipat', 'weight' => '5,5 kg', 'in' => '20 Mei 2026', 'eta' => '21 Mei 2026', 'status' => 'Dikeringkan', 'tone' => 'teal', 'total' => 'Rp 40.000'],
-    ['no' => 6, 'nota' => 'INV-250520-013', 'name' => 'Ahmad Fauzi', 'phone' => '0811-5566-7788', 'service' => 'Baju Bayi', 'weight' => '3,0 kg', 'in' => '20 Mei 2026', 'eta' => '21 Mei 2026', 'status' => 'Dicuci', 'tone' => 'blue', 'total' => 'Rp 50.000'],
-    ['no' => 7, 'nota' => 'INV-250519-012', 'name' => 'Maya Putri', 'phone' => '0812-6677-8899', 'service' => 'Satuan', 'weight' => '10 pcs', 'in' => '19 Mei 2026', 'eta' => '19 Mei 2026', 'status' => 'Selesai', 'tone' => 'green', 'total' => 'Rp 25.000'],
-    ['no' => 8, 'nota' => 'INV-250519-011', 'name' => 'Rizky Pratama', 'phone' => '0813-7788-9900', 'service' => 'Express', 'weight' => '7,0 kg', 'in' => '19 Mei 2026', 'eta' => '20 Mei 2026', 'status' => 'Selesai', 'tone' => 'green', 'total' => 'Rp 85.000'],
-    ['no' => 9, 'nota' => 'INV-250518-010', 'name' => 'Nurul Hidayah', 'phone' => '0811-8999-2211', 'service' => 'Treatment', 'weight' => '3,5 kg', 'in' => '18 Mei 2026', 'eta' => '20 Mei 2026', 'status' => 'Selesai', 'tone' => 'green', 'total' => 'Rp 70.000'],
-    ['no' => 10, 'nota' => 'INV-250518-009', 'name' => 'Fajar Nugroho', 'phone' => '0812-9900-1122', 'service' => 'Cuci Kering', 'weight' => '8,0 kg', 'in' => '18 Mei 2026', 'eta' => '20 Mei 2026', 'status' => 'Diambil', 'tone' => 'purple', 'total' => 'Rp 75.000'],
+    ['no' => 5, 'nota' => 'INV-250520-014', 'name' => 'Rina Marlina', 'phone' => '0813-9988-7766', 'service' => 'Pengering & Lipat', 'weight' => '5,5 kg', 'in' => '20 Mei 2026', 'eta' => '21 Mei 2026', 'status' => 'Dikeringkan', 'tone' => 'cyan', 'total' => 'Rp 40.000'],
+    ['no' => 6, 'nota' => 'INV-250520-013', 'name' => 'Ahmad Fauzi', 'phone' => '0811-5566-7788', 'service' => 'Baju Bayi', 'weight' => '3,0 kg', 'in' => '20 Mei 2026', 'eta' => '21 Mei 2026', 'status' => 'Dicuci', 'tone' => 'teal', 'total' => 'Rp 50.000'],
+    ['no' => 7, 'nota' => 'INV-250519-012', 'name' => 'Maya Putri', 'phone' => '0812-6677-8899', 'service' => 'Satuan', 'weight' => '10 pcs', 'in' => '19 Mei 2026', 'eta' => '19 Mei 2026', 'status' => 'Selesai', 'tone' => 'purple', 'total' => 'Rp 25.000'],
+    ['no' => 8, 'nota' => 'INV-250519-011', 'name' => 'Rizky Pratama', 'phone' => '0813-7788-9900', 'service' => 'Express', 'weight' => '7,0 kg', 'in' => '19 Mei 2026', 'eta' => '20 Mei 2026', 'status' => 'Selesai', 'tone' => 'purple', 'total' => 'Rp 85.000'],
+    ['no' => 9, 'nota' => 'INV-250518-010', 'name' => 'Nurul Hidayah', 'phone' => '0811-8999-2211', 'service' => 'Treatment', 'weight' => '3,5 kg', 'in' => '18 Mei 2026', 'eta' => '20 Mei 2026', 'status' => 'Selesai', 'tone' => 'purple', 'total' => 'Rp 70.000'],
+    ['no' => 10, 'nota' => 'INV-250518-009', 'name' => 'Fajar Nugroho', 'phone' => '0812-9900-1122', 'service' => 'Cuci Kering', 'weight' => '8,0 kg', 'in' => '18 Mei 2026', 'eta' => '20 Mei 2026', 'status' => 'Diambil', 'tone' => 'green', 'total' => 'Rp 75.000'],
 ];
 
 $statusSummary = $statusSummary ?? [
-    ['label' => 'Antrean', 'value' => 46, 'percent' => '24,7%', 'tone' => 'blue-light'],
-    ['label' => 'Diproses', 'value' => 58, 'percent' => '31,2%', 'tone' => 'orange'],
-    ['label' => 'Dicuci', 'value' => 32, 'percent' => '17,2%', 'tone' => 'blue'],
-    ['label' => 'Dikeringkan', 'value' => 20, 'percent' => '10,8%', 'tone' => 'teal'],
-    ['label' => 'Disetrika', 'value' => 12, 'percent' => '6,5%', 'tone' => 'amber'],
-    ['label' => 'Selesai', 'value' => 18, 'percent' => '9,7%', 'tone' => 'green'],
-    ['label' => 'Diambil', 'value' => 0, 'percent' => '0%', 'tone' => 'purple'],
+    ['label' => 'Antrean', 'value' => 46, 'percent' => '24,7%', 'tone' => 'blue'],
+    ['label' => 'Diproses', 'value' => 58, 'percent' => '31,2%', 'tone' => 'green'],
+    ['label' => 'Dicuci', 'value' => 32, 'percent' => '17,2%', 'tone' => 'teal'],
+    ['label' => 'Dikeringkan', 'value' => 20, 'percent' => '10,8%', 'tone' => 'cyan'],
+    ['label' => 'Disetrika', 'value' => 12, 'percent' => '6,5%', 'tone' => 'orange'],
+    ['label' => 'Selesai', 'value' => 18, 'percent' => '9,7%', 'tone' => 'purple'],
+    ['label' => 'Diambil', 'value' => 0, 'percent' => '0%', 'tone' => 'green'],
+];
+
+$statusColors = [
+    'Antrean' => '#2f80ed',
+    'Diproses' => '#28a765',
+    'Dicuci' => '#32b7c7',
+    'Dikeringkan' => '#0ea5d8',
+    'Disetrika' => '#f59e0b',
+    'Selesai' => '#7047d9',
+    'Diambil' => '#3dbb4f',
 ];
 
 $activities = $activities ?? [
@@ -59,14 +69,11 @@ $serviceOptions = $serviceOptions ?? [];
 if ($serviceOptions === [] && $packages !== []) {
     $serviceOptions = array_map(static function (array $package): array {
         $name = (string) ($package['name'] ?? '');
-        $category = (string) ($package['category'] ?? '');
-        $unit = (string) ($package['unit'] ?? '');
-        $meta = array_filter([$category !== '' ? 'Layanan ' . $category : '', $unit]);
 
         return [
             'id' => (string) ($package['id'] ?? $name),
             'name' => $name,
-            'label' => $name . ($meta !== [] ? ' (' . implode(' - ', $meta) . ')' : ''),
+            'label' => $name,
         ];
     }, $packages);
 }
@@ -190,7 +197,7 @@ ob_start();
                                 <?php foreach ($serviceOptions as $option): ?>
                                     <?php $serviceName = (string) ($option['name'] ?? ''); ?>
                                     <option value="<?= htmlspecialchars($serviceName, ENT_QUOTES, 'UTF-8') ?>" <?= $filterService === $serviceName ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars((string) ($option['label'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                        <?= htmlspecialchars($serviceName, ENT_QUOTES, 'UTF-8') ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -289,7 +296,11 @@ ob_start();
                             </div>
                             <div class="laundry-status-list">
                                 <?php foreach ($statusSummary as $status): ?>
-                                    <p><span class="<?= htmlspecialchars($status['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span><?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?><strong><?= $status['value'] ?></strong><small>(<?= htmlspecialchars($status['percent'], ENT_QUOTES, 'UTF-8') ?>)</small></p>
+                                    <?php
+                                    $statusLabel = (string) ($status['label'] ?? '');
+                                    $statusColor = $statusColors[$statusLabel] ?? '#2f80ed';
+                                    ?>
+                                    <p style="--status-color: <?= htmlspecialchars($statusColor, ENT_QUOTES, 'UTF-8') ?>;"><span class="<?= htmlspecialchars($status['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?><strong><?= $status['value'] ?></strong><small>(<?= htmlspecialchars($status['percent'], ENT_QUOTES, 'UTF-8') ?>)</small></p>
                                 <?php endforeach; ?>
                             </div>
                         </div>
@@ -346,7 +357,7 @@ ob_start();
                                 <option value="">Pilih jenis layanan</option>
                                 <?php foreach ($serviceOptions as $option): ?>
                                     <option value="<?= htmlspecialchars((string) ($option['id'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                                        <?= htmlspecialchars((string) ($option['label'] ?? $option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                        <?= htmlspecialchars((string) ($option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
