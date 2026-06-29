@@ -24,4 +24,5 @@ $router->post('/admin/pengaturan', [HomeController::class, 'adminStorePengaturan
 $router->post('/admin/topbar/read', [HomeController::class, 'adminMarkTopbarRead']);
 $router->get('/admin/login', [HomeController::class, 'adminLogin']);
 $router->post('/admin/login', [HomeController::class, 'adminAuthenticate']);
+$router->get('/admin/lupa-password', [HomeController::class, 'adminForgotPassword']);
 $router->get('/admin/logout', [HomeController::class, 'adminLogout']);

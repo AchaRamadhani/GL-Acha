@@ -25,14 +25,80 @@ class LaundryRepository extends Model
 
     private const TOPBAR_NOTIFICATION_TYPES = ['cucian', 'status', 'pelanggan', 'paket', 'pengaturan', 'sistem'];
     private const TOPBAR_MESSAGE_TYPES = ['tracking'];
+    private const OPERATIONAL_MODES = ['auto', 'buka', 'ishoma', 'tutup', 'libur'];
+    private const OPERATIONAL_STATUS_LABELS = [
+        'auto' => 'Otomatis',
+        'buka' => 'Buka',
+        'ishoma' => 'Ishoma',
+        'tutup' => 'Tutup',
+        'libur' => 'Libur',
+    ];
+    private const OPERATIONAL_STATUS_TONES = [
+        'Buka' => 'open',
+        'Ishoma' => 'break',
+        'Tutup' => 'closed',
+        'Libur' => 'holiday',
+    ];
+    private const WEEKDAY_LABELS = [
+        '1' => 'Senin',
+        '2' => 'Selasa',
+        '3' => 'Rabu',
+        '4' => 'Kamis',
+        '5' => 'Jumat',
+        '6' => 'Sabtu',
+        '0' => 'Minggu',
+    ];
+    private const RECURRING_RED_DATES = [
+        '01-01' => 'Tahun Baru Masehi',
+        '05-01' => 'Hari Buruh Internasional',
+        '06-01' => 'Hari Lahir Pancasila',
+        '08-17' => 'Hari Kemerdekaan Republik Indonesia',
+        '12-25' => 'Hari Raya Natal',
+    ];
+    private const INDONESIA_RED_DATES = [
+        2026 => [
+            '2026-01-01' => 'Tahun Baru 2026 Masehi',
+            '2026-01-16' => 'Isra Mikraj Nabi Muhammad SAW',
+            '2026-02-16' => 'Cuti bersama Tahun Baru Imlek 2577 Kongzili',
+            '2026-02-17' => 'Tahun Baru Imlek 2577 Kongzili',
+            '2026-02-18' => 'Cuti bersama Tahun Baru Imlek 2577 Kongzili',
+            '2026-03-19' => 'Hari Suci Nyepi Tahun Baru Saka 1948',
+            '2026-03-20' => 'Cuti bersama Hari Suci Nyepi Tahun Baru Saka 1948',
+            '2026-03-21' => 'Idulfitri 1447 Hijriah',
+            '2026-03-22' => 'Idulfitri 1447 Hijriah',
+            '2026-03-23' => 'Cuti bersama Idulfitri 1447 Hijriah',
+            '2026-03-24' => 'Cuti bersama Idulfitri 1447 Hijriah',
+            '2026-04-03' => 'Wafat Yesus Kristus',
+            '2026-04-05' => 'Kebangkitan Yesus Kristus',
+            '2026-05-01' => 'Hari Buruh Internasional',
+            '2026-05-14' => 'Kenaikan Yesus Kristus',
+            '2026-05-15' => 'Cuti bersama Kenaikan Yesus Kristus',
+            '2026-05-27' => 'Iduladha 1447 Hijriah',
+            '2026-05-28' => 'Cuti bersama Iduladha 1447 Hijriah',
+            '2026-05-31' => 'Hari Raya Waisak 2570 BE',
+            '2026-06-01' => 'Hari Lahir Pancasila',
+            '2026-06-16' => '1 Muharam Tahun Baru Islam 1448 Hijriah',
+            '2026-08-17' => 'Hari Kemerdekaan Republik Indonesia',
+            '2026-08-25' => 'Maulid Nabi Muhammad SAW',
+            '2026-12-24' => 'Cuti bersama Hari Raya Natal',
+            '2026-12-25' => 'Hari Raya Natal',
+        ],
+    ];
 
     private const DEFAULT_SETTINGS = [
         'admin_email' => 'admin@ghavalaundry.com',
         'laundry_name' => 'Ghava Laundry',
         'whatsapp' => '081242910340',
         'address' => 'Jl. Poros Hartaco Indah, Kelurahan Sudiang Raya, Kecamatan Biringkanaya, Kota Makassar, Sulawesi Selatan 90242',
+        'operational_mode' => 'auto',
         'open_time' => '07:00',
         'close_time' => '21:00',
+        'ishoma_enabled' => '1',
+        'ishoma_start_time' => '12:00',
+        'ishoma_end_time' => '13:00',
+        'closed_weekdays' => '',
+        'auto_red_date_enabled' => '1',
+        'custom_holiday_dates' => '',
         'message' => 'Halo {nama_pelanggan}, cucian Anda dengan nomor pesanan {kode_pesanan} sudah selesai. Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada Ghava Laundry!',
         'browser_notification' => '1',
         'message_notification' => '1',
@@ -90,6 +156,71 @@ class LaundryRepository extends Model
         $this->settingsCache = $settings;
 
         return $settings;
+    }
+
+    public function operationalStatus(?DateTimeImmutable $now = null): array
+    {
+        $timezone = new DateTimeZone('Asia/Makassar');
+        $now = $now?->setTimezone($timezone) ?? new DateTimeImmutable('now', $timezone);
+        $settings = $this->settings();
+        $mode = $this->normalizeOperationalMode((string) ($settings['operational_mode'] ?? 'auto'));
+
+        if ($mode !== 'auto') {
+            $status = self::OPERATIONAL_STATUS_LABELS[$mode] ?? 'Tutup';
+
+            return $this->presentOperationalStatus($status, $this->manualOperationalText($status), 'manual');
+        }
+
+        $today = $now->format('Y-m-d');
+
+        if (($settings['auto_red_date_enabled'] ?? '1') === '1') {
+            $holidayName = $this->holidayNameForDate($today, $settings);
+
+            if ($holidayName !== null) {
+                return $this->presentOperationalStatus('Libur', 'Tanggal merah: ' . $holidayName . '.', 'holiday');
+            }
+        }
+
+        $weekday = $now->format('w');
+        $closedWeekdays = $this->splitSettingList((string) ($settings['closed_weekdays'] ?? ''));
+
+        if (in_array($weekday, $closedWeekdays, true)) {
+            return $this->presentOperationalStatus(
+                'Libur',
+                'Libur mingguan setiap ' . (self::WEEKDAY_LABELS[$weekday] ?? 'hari ini') . '.',
+                'weekly'
+            );
+        }
+
+        $openTime = $this->normalizeSettingTime((string) ($settings['open_time'] ?? self::DEFAULT_SETTINGS['open_time']), self::DEFAULT_SETTINGS['open_time']);
+        $closeTime = $this->normalizeSettingTime((string) ($settings['close_time'] ?? self::DEFAULT_SETTINGS['close_time']), self::DEFAULT_SETTINGS['close_time']);
+        $time = $now->format('H:i');
+
+        if (!$this->isTimeWithinRange($time, $openTime, $closeTime)) {
+            return $this->presentOperationalStatus(
+                'Tutup',
+                'Jam buka ' . $this->formatSettingClock($openTime) . ' - ' . $this->formatSettingClock($closeTime) . ' WITA.',
+                'schedule'
+            );
+        }
+
+        $ishomaEnabled = ($settings['ishoma_enabled'] ?? '1') === '1';
+        $ishomaStart = $this->normalizeSettingTime((string) ($settings['ishoma_start_time'] ?? self::DEFAULT_SETTINGS['ishoma_start_time']), self::DEFAULT_SETTINGS['ishoma_start_time']);
+        $ishomaEnd = $this->normalizeSettingTime((string) ($settings['ishoma_end_time'] ?? self::DEFAULT_SETTINGS['ishoma_end_time']), self::DEFAULT_SETTINGS['ishoma_end_time']);
+
+        if ($ishomaEnabled && $this->isTimeWithinRange($time, $ishomaStart, $ishomaEnd)) {
+            return $this->presentOperationalStatus(
+                'Ishoma',
+                'Istirahat sampai ' . $this->formatSettingClock($ishomaEnd) . ' WITA.',
+                'ishoma'
+            );
+        }
+
+        return $this->presentOperationalStatus(
+            'Buka',
+            'Buka sampai ' . $this->formatSettingClock($closeTime) . ' WITA.',
+            'schedule'
+        );
     }
 
     public function saveSettings(array $payload, int $adminId): array
@@ -1381,6 +1512,7 @@ class LaundryRepository extends Model
         $address = trim((string) ($payload['address'] ?? ''));
         $message = trim((string) ($payload['message'] ?? ''));
         $dateFormat = trim((string) ($payload['date_format'] ?? $settings['date_format']));
+        $operationalMode = $this->normalizeOperationalMode((string) ($payload['operational_mode'] ?? $settings['operational_mode']));
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new \InvalidArgumentException('Email admin belum valid.');
@@ -1411,8 +1543,15 @@ class LaundryRepository extends Model
             'laundry_name' => $laundryName,
             'whatsapp' => $whatsapp,
             'address' => $address,
+            'operational_mode' => $operationalMode,
             'open_time' => $this->normalizeSettingTime((string) ($payload['open_time'] ?? $settings['open_time']), $settings['open_time']),
             'close_time' => $this->normalizeSettingTime((string) ($payload['close_time'] ?? $settings['close_time']), $settings['close_time']),
+            'ishoma_enabled' => isset($payload['ishoma_enabled']) ? '1' : '0',
+            'ishoma_start_time' => $this->normalizeSettingTime((string) ($payload['ishoma_start_time'] ?? $settings['ishoma_start_time']), $settings['ishoma_start_time']),
+            'ishoma_end_time' => $this->normalizeSettingTime((string) ($payload['ishoma_end_time'] ?? $settings['ishoma_end_time']), $settings['ishoma_end_time']),
+            'closed_weekdays' => $this->normalizeWeekdayList($payload['closed_weekdays'] ?? ''),
+            'auto_red_date_enabled' => isset($payload['auto_red_date_enabled']) ? '1' : '0',
+            'custom_holiday_dates' => $this->normalizeHolidayDateLines((string) ($payload['custom_holiday_dates'] ?? '')),
             'message' => substr($message, 0, 300),
             'browser_notification' => isset($payload['browser_notification']) ? '1' : '0',
             'message_notification' => isset($payload['message_notification']) ? '1' : '0',
@@ -1430,6 +1569,162 @@ class LaundryRepository extends Model
         }
 
         return $fallback;
+    }
+
+    private function normalizeOperationalMode(string $mode): string
+    {
+        $mode = strtolower(trim($mode));
+
+        return in_array($mode, self::OPERATIONAL_MODES, true) ? $mode : 'auto';
+    }
+
+    private function normalizeWeekdayList($value): string
+    {
+        $items = is_array($value) ? $value : preg_split('/\s*,\s*/', (string) $value, -1, PREG_SPLIT_NO_EMPTY);
+        $valid = [];
+
+        foreach ($items ?: [] as $item) {
+            $item = (string) $item;
+
+            if (array_key_exists($item, self::WEEKDAY_LABELS)) {
+                $valid[$item] = $item;
+            }
+        }
+
+        $order = ['1', '2', '3', '4', '5', '6', '0'];
+        $sorted = [];
+
+        foreach ($order as $day) {
+            if (isset($valid[$day])) {
+                $sorted[] = $day;
+            }
+        }
+
+        return implode(',', $sorted);
+    }
+
+    private function splitSettingList(string $value): array
+    {
+        $items = preg_split('/\s*,\s*/', trim($value), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return array_values(array_unique(array_map('strval', $items)));
+    }
+
+    private function normalizeHolidayDateLines(string $value): string
+    {
+        $holidays = $this->parseHolidayDateLines($value, true);
+        $lines = [];
+
+        foreach ($holidays as $date => $name) {
+            $lines[] = $name !== '' ? $date . ' | ' . $name : $date;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function parseHolidayDateLines(string $value, bool $strict): array
+    {
+        $lines = preg_split('/\R+/', $value) ?: [];
+        $holidays = [];
+        $timezone = new DateTimeZone('Asia/Makassar');
+
+        foreach ($lines as $index => $line) {
+            $line = trim($line);
+
+            if ($line === '') {
+                continue;
+            }
+
+            if (count($holidays) >= 120) {
+                break;
+            }
+
+            [$date, $name] = array_pad(array_map('trim', explode('|', $line, 2)), 2, '');
+            $dt = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
+            $isValidDate = $dt instanceof DateTimeImmutable && $dt->format('Y-m-d') === $date;
+
+            if (!$isValidDate) {
+                if ($strict) {
+                    throw new \InvalidArgumentException('Format tanggal libur baris ' . ($index + 1) . ' harus YYYY-MM-DD.');
+                }
+
+                continue;
+            }
+
+            $name = trim(preg_replace('/\s+/', ' ', $name) ?: '');
+            $holidays[$date] = substr($name, 0, 100);
+        }
+
+        return $holidays;
+    }
+
+    private function holidayNameForDate(string $date, array $settings): ?string
+    {
+        $customHolidays = $this->parseHolidayDateLines((string) ($settings['custom_holiday_dates'] ?? ''), false);
+
+        if (array_key_exists($date, $customHolidays)) {
+            return $customHolidays[$date] !== '' ? $customHolidays[$date] : 'Libur khusus';
+        }
+
+        $year = (int) substr($date, 0, 4);
+
+        if (isset(self::INDONESIA_RED_DATES[$year][$date])) {
+            return self::INDONESIA_RED_DATES[$year][$date];
+        }
+
+        $monthDay = substr($date, 5);
+
+        return self::RECURRING_RED_DATES[$monthDay] ?? null;
+    }
+
+    private function presentOperationalStatus(string $status, string $text, string $source): array
+    {
+        return [
+            'status' => $status,
+            'title' => $status,
+            'text' => $text,
+            'tone' => self::OPERATIONAL_STATUS_TONES[$status] ?? 'closed',
+            'source' => $source,
+        ];
+    }
+
+    private function manualOperationalText(string $status): string
+    {
+        return [
+            'Buka' => 'Status buka diatur manual oleh admin.',
+            'Ishoma' => 'Status ishoma diatur manual oleh admin.',
+            'Tutup' => 'Status tutup diatur manual oleh admin.',
+            'Libur' => 'Status libur diatur manual oleh admin.',
+        ][$status] ?? 'Status operasional diatur manual oleh admin.';
+    }
+
+    private function isTimeWithinRange(string $time, string $start, string $end): bool
+    {
+        $currentMinutes = $this->timeToMinutes($time);
+        $startMinutes = $this->timeToMinutes($start);
+        $endMinutes = $this->timeToMinutes($end);
+
+        if ($startMinutes === $endMinutes) {
+            return true;
+        }
+
+        if ($startMinutes < $endMinutes) {
+            return $currentMinutes >= $startMinutes && $currentMinutes < $endMinutes;
+        }
+
+        return $currentMinutes >= $startMinutes || $currentMinutes < $endMinutes;
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        [$hour, $minute] = array_map('intval', explode(':', $time));
+
+        return ($hour * 60) + $minute;
+    }
+
+    private function formatSettingClock(string $time): string
+    {
+        return str_replace(':', '.', $time);
     }
 
     private function scalar(string $sql, array $params = [])

@@ -123,6 +123,7 @@ if (trackingForm && nomorNotaInput) {
             return;
         }
 
+        nomorNotaInput.value = nomorNota;
         nomorNotaInput.removeAttribute('aria-invalid');
     });
 }
@@ -135,6 +136,7 @@ if (passwordToggle && adminPasswordInput) {
         const isHidden = adminPasswordInput.type === 'password';
         adminPasswordInput.type = isHidden ? 'text' : 'password';
         passwordToggle.setAttribute('aria-label', isHidden ? 'Sembunyikan password' : 'Tampilkan password');
+        passwordToggle.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
     });
 }
 
@@ -1480,6 +1482,10 @@ if (settingsForm) {
     const messageSource = settingsForm.querySelector('[data-message-counter-source]');
     const messageCounter = settingsForm.querySelector('[data-message-counter]');
     const logoutConfirmToggle = settingsForm.querySelector('[data-logout-confirm-toggle]');
+    const operationalMode = settingsForm.querySelector('[data-operational-mode]');
+    const ishomaToggle = settingsForm.querySelector('[data-ishoma-toggle]');
+    const redDateToggle = settingsForm.querySelector('[data-red-date-toggle]');
+    const ishomaControls = Array.from(settingsForm.querySelectorAll('#settingIshomaStartTime, #settingIshomaEndTime'));
     let toastTimer;
 
     const showSettingsToast = (message) => {
@@ -1517,6 +1523,16 @@ if (settingsForm) {
 
         const maxLength = messageSource.getAttribute('maxlength') || '300';
         messageCounter.textContent = `${messageSource.value.length} / ${maxLength}`;
+    };
+
+    const syncIshomaControls = () => {
+        if (!ishomaToggle) {
+            return;
+        }
+
+        ishomaControls.forEach((control) => {
+            control.setAttribute('aria-disabled', ishomaToggle.checked ? 'false' : 'true');
+        });
     };
 
     settingsFields.forEach((field) => {
@@ -1568,6 +1584,29 @@ if (settingsForm) {
         });
     }
 
+    if (operationalMode) {
+        operationalMode.addEventListener('change', () => {
+            const label = operationalMode.options[operationalMode.selectedIndex]?.textContent || 'status operasional';
+            showSettingsToast(`${label} akan diterapkan setelah disimpan.`);
+            setFeedback('Status operasional diperbarui. Simpan perubahan untuk menerapkan.');
+        });
+    }
+
+    if (ishomaToggle) {
+        ishomaToggle.addEventListener('change', () => {
+            syncIshomaControls();
+            showSettingsToast(ishomaToggle.checked ? 'Jadwal ishoma diaktifkan.' : 'Jadwal ishoma dinonaktifkan.');
+            setFeedback('Jadwal ishoma diperbarui. Simpan perubahan untuk menerapkan.');
+        });
+    }
+
+    if (redDateToggle) {
+        redDateToggle.addEventListener('change', () => {
+            showSettingsToast(redDateToggle.checked ? 'Tanggal merah otomatis diaktifkan.' : 'Tanggal merah otomatis dinonaktifkan.');
+            setFeedback('Pengaturan tanggal merah diperbarui. Simpan perubahan untuk menerapkan.');
+        });
+    }
+
     settingsForm.addEventListener('submit', (event) => {
         const newPassword = settingsForm.querySelector('#settingNewPassword');
         const confirmPassword = settingsForm.querySelector('#settingConfirmPassword');
@@ -1586,6 +1625,7 @@ if (settingsForm) {
     });
 
     updateCounter();
+    syncIshomaControls();
 }
 
 const dashboardLogoutLinks = document.querySelectorAll('.dashboard-logout');

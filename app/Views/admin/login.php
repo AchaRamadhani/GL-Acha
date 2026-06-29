@@ -3,6 +3,7 @@ $baseUrlSafe = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
 $csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
 $loginErrorSafe = htmlspecialchars($loginError ?? '', ENT_QUOTES, 'UTF-8');
 $oldUsernameSafe = htmlspecialchars($oldUsername ?? '', ENT_QUOTES, 'UTF-8');
+$rememberChecked = !empty($oldRemember) ? ' checked' : '';
 ob_start();
 ?>
 <div class="admin-login-page admin-login-redesign">
@@ -60,7 +61,7 @@ ob_start();
                         </svg>
                     </span>
                     <input id="adminPassword" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
-                    <button class="admin-password-toggle" type="button" aria-label="Tampilkan password" data-password-toggle>
+                    <button class="admin-password-toggle" type="button" aria-label="Tampilkan password" aria-pressed="false" data-password-toggle>
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                             <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path>
                             <circle cx="12" cy="12" r="3"></circle>
@@ -70,10 +71,10 @@ ob_start();
 
                 <div class="admin-form-options">
                     <label>
-                        <input type="checkbox" name="remember">
+                        <input type="checkbox" name="remember" value="1"<?= $rememberChecked ?>>
                         <span>Ingat saya</span>
                     </label>
-                    <a href="#">Lupa password?</a>
+                    <a href="<?= $baseUrlSafe ?>/admin/lupa-password">Lupa password?</a>
                 </div>
 
                 <button class="admin-submit-button" type="submit">

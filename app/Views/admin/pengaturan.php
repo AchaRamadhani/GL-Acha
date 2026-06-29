@@ -9,11 +9,50 @@ $adminUsername = (string) ($admin['username'] ?? 'admin');
 $adminRole = (string) ($admin['role'] ?? 'Administrator');
 $currentOpenTime = $setting('open_time', '07:00');
 $currentCloseTime = $setting('close_time', '21:00');
+$currentOperationalMode = $setting('operational_mode', 'auto');
+$currentIshomaEnabled = $setting('ishoma_enabled', '1') === '1';
+$currentIshomaStartTime = $setting('ishoma_start_time', '12:00');
+$currentIshomaEndTime = $setting('ishoma_end_time', '13:00');
+$currentClosedWeekdays = array_filter(explode(',', $setting('closed_weekdays', '')), static fn (string $day): bool => $day !== '');
+$currentAutoRedDateEnabled = $setting('auto_red_date_enabled', '1') === '1';
+$currentCustomHolidayDates = $setting('custom_holiday_dates', '');
+$operationalStatus = $operationalStatus ?? ['status' => 'Buka', 'text' => 'Buka sampai ' . str_replace(':', '.', $currentCloseTime) . ' WITA.', 'tone' => 'open'];
+$timeOptions = [];
+
+foreach (range(0, 23) as $hour) {
+    foreach (['00', '30'] as $minute) {
+        $timeOptions[] = sprintf('%02d:%s', $hour, $minute);
+    }
+}
+
 $timeOptions = array_values(array_unique(array_merge(
-    array_map(static fn (int $hour): string => sprintf('%02d:00', $hour), range(6, 22)),
-    [$currentOpenTime, $currentCloseTime]
+    $timeOptions,
+    [$currentOpenTime, $currentCloseTime, $currentIshomaStartTime, $currentIshomaEndTime]
 )));
 sort($timeOptions);
+$operationalModeOptions = [
+    'auto' => 'Ikuti Jadwal Otomatis',
+    'buka' => 'Paksa Buka',
+    'ishoma' => 'Paksa Ishoma',
+    'tutup' => 'Paksa Tutup',
+    'libur' => 'Paksa Libur',
+];
+
+if (!array_key_exists($currentOperationalMode, $operationalModeOptions)) {
+    $currentOperationalMode = 'auto';
+}
+
+$weekdayOptions = [
+    '1' => 'Senin',
+    '2' => 'Selasa',
+    '3' => 'Rabu',
+    '4' => 'Kamis',
+    '5' => 'Jumat',
+    '6' => 'Sabtu',
+    '0' => 'Minggu',
+];
+$operationalTone = preg_replace('/[^a-z]/', '', (string) ($operationalStatus['tone'] ?? 'open')) ?: 'open';
+$operationalBadgeClass = 'settings-status-preview is-' . $operationalTone;
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -125,7 +164,54 @@ ob_start();
                             <input id="settingAddress" name="address" type="text" value="<?= htmlspecialchars($setting('address'), ENT_QUOTES, 'UTF-8') ?>" maxlength="180" required>
                         </label>
 
-                        <div class="settings-field settings-time-field" data-settings-field data-setting-label="Jam Operasional">
+                        <label class="settings-field" for="settingMessage" data-settings-field data-setting-label="Pesan Otomatis WhatsApp">
+                            <span>Pesan Otomatis WhatsApp saat status selesai</span>
+                            <textarea id="settingMessage" name="message" maxlength="300" required data-message-counter-source><?= htmlspecialchars($setting('message'), ENT_QUOTES, 'UTF-8') ?></textarea>
+                        </label>
+                        <div class="settings-helper-row">
+                            <small>Gunakan {nama_pelanggan} dan {kode_pesanan} sebagai placeholder dinamis.</small>
+                            <small data-message-counter>0 / 300</small>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="settings-operational-grid">
+                    <article class="settings-card settings-operational-card">
+                        <div class="settings-card-heading">
+                            <div>
+                                <h2>Jadwal & Status Operasional</h2>
+                                <p>Atur status otomatis, jam buka, ishoma, dan libur laundry.</p>
+                            </div>
+                            <span class="<?= htmlspecialchars($operationalBadgeClass, ENT_QUOTES, 'UTF-8') ?>">
+                                <small>Status hari ini</small>
+                                <strong><?= htmlspecialchars((string) ($operationalStatus['status'] ?? 'Buka'), ENT_QUOTES, 'UTF-8') ?></strong>
+                            </span>
+                        </div>
+
+                        <div class="settings-field-grid settings-operational-fields">
+                            <label class="settings-field" for="settingOperationalMode" data-settings-field data-setting-label="Status Operasional">
+                                <span>Status Operasional</span>
+                                <select id="settingOperationalMode" name="operational_mode" data-operational-mode>
+                                    <?php foreach ($operationalModeOptions as $value => $label): ?>
+                                        <option value="<?= htmlspecialchars($value, ENT_QUOTES, 'UTF-8') ?>" <?= $currentOperationalMode === $value ? 'selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+
+                            <label class="settings-preference-row settings-inline-toggle" data-settings-field data-setting-label="Tanggal Merah Otomatis">
+                                <span class="settings-preference-icon" aria-hidden="true">&#128197;</span>
+                                <span>
+                                    <strong>Tanggal Merah Otomatis</strong>
+                                    <small>Status menjadi libur saat masuk daftar tanggal merah.</small>
+                                </span>
+                                <span class="settings-toggle">
+                                    <input type="checkbox" name="auto_red_date_enabled" <?= $currentAutoRedDateEnabled ? 'checked' : '' ?> data-red-date-toggle>
+                                    <i aria-hidden="true"></i>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="settings-time-group" data-settings-field data-setting-label="Jam Operasional">
                             <span>Jam Operasional</span>
                             <div class="settings-time-row">
                                 <label class="settings-select-shell" for="settingOpenTime">
@@ -148,13 +234,54 @@ ob_start();
                             </div>
                         </div>
 
-                        <label class="settings-field" for="settingMessage" data-settings-field data-setting-label="Pesan Otomatis WhatsApp">
-                            <span>Pesan Otomatis WhatsApp saat status selesai</span>
-                            <textarea id="settingMessage" name="message" maxlength="300" required data-message-counter-source><?= htmlspecialchars($setting('message'), ENT_QUOTES, 'UTF-8') ?></textarea>
+                        <div class="settings-time-group" data-settings-field data-setting-label="Jam Ishoma">
+                            <div class="settings-time-title-row">
+                                <span>Jam Ishoma</span>
+                                <label class="settings-mini-toggle">
+                                    <input type="checkbox" name="ishoma_enabled" <?= $currentIshomaEnabled ? 'checked' : '' ?> data-ishoma-toggle>
+                                    <span>Aktif</span>
+                                </label>
+                            </div>
+                            <div class="settings-time-row">
+                                <label class="settings-select-shell" for="settingIshomaStartTime">
+                                    <i aria-hidden="true">&#128337;</i>
+                                    <select id="settingIshomaStartTime" name="ishoma_start_time">
+                                        <?php foreach ($timeOptions as $time): ?>
+                                            <option value="<?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?>" <?= $currentIshomaStartTime === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <strong>s/d</strong>
+                                <label class="settings-select-shell" for="settingIshomaEndTime">
+                                    <i aria-hidden="true">&#128337;</i>
+                                    <select id="settingIshomaEndTime" name="ishoma_end_time">
+                                        <?php foreach ($timeOptions as $time): ?>
+                                            <option value="<?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?>" <?= $currentIshomaEndTime === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-field settings-weekday-field" data-settings-field data-setting-label="Libur Mingguan">
+                            <span>Libur Mingguan</span>
+                            <div class="settings-weekday-grid">
+                                <?php foreach ($weekdayOptions as $value => $label): ?>
+                                    <label class="settings-check-tile">
+                                        <input type="checkbox" name="closed_weekdays[]" value="<?= htmlspecialchars($value, ENT_QUOTES, 'UTF-8') ?>" <?= in_array($value, $currentClosedWeekdays, true) ? 'checked' : '' ?>>
+                                        <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <label class="settings-field" for="settingCustomHolidays" data-settings-field data-setting-label="Tanggal Libur Khusus">
+                            <span>Tanggal Libur Khusus</span>
+                            <textarea id="settingCustomHolidays" name="custom_holiday_dates" rows="5" placeholder="2026-12-31 | Libur akhir tahun"><?= htmlspecialchars($currentCustomHolidayDates, ENT_QUOTES, 'UTF-8') ?></textarea>
                         </label>
                         <div class="settings-helper-row">
-                            <small>Gunakan {nama_pelanggan} dan {kode_pesanan} sebagai placeholder dinamis.</small>
-                            <small data-message-counter>0 / 300</small>
+                            <small>Satu tanggal per baris. Format: YYYY-MM-DD | Nama libur.</small>
+                            <small><?= htmlspecialchars((string) ($operationalStatus['text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></small>
                         </div>
                     </article>
                 </section>

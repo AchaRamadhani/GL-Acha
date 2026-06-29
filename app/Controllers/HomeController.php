@@ -26,6 +26,7 @@ class HomeController extends Controller
         $this->view('home/index', [
             'title' => 'Ghava Laundry',
             'settings' => $this->laundry()->settings(),
+            'operationalStatus' => $this->laundry()->operationalStatus(),
             'packages' => $this->laundry()->packages(),
             'trackingResult' => $trackingResult,
             'trackingSearch' => $nota,
@@ -43,6 +44,29 @@ class HomeController extends Controller
             'csrfToken' => Auth::csrfToken(),
             'loginError' => Auth::pullFlash('login_error'),
             'oldUsername' => Auth::pullFlash('old_username'),
+            'oldRemember' => Auth::pullFlash('old_remember') === '1',
+        ]);
+    }
+
+    public function adminForgotPassword(): void
+    {
+        if (Auth::check()) {
+            Auth::redirect('/admin');
+        }
+
+        $settings = $this->laundry()->settings();
+        $whatsappDisplay = (string) ($settings['whatsapp'] ?? '');
+        $whatsappNumber = $this->normalizeWhatsappNumber($whatsappDisplay);
+        $message = 'Halo Ghava Laundry, saya perlu bantuan reset password admin.';
+
+        $this->view('admin/forgot-password', [
+            'title' => 'Lupa Password Admin - Ghava Laundry',
+            'settings' => $settings,
+            'recoveryEmail' => (string) ($settings['admin_email'] ?? ''),
+            'recoveryPhone' => $whatsappDisplay,
+            'recoveryWhatsappUrl' => $whatsappNumber !== ''
+                ? 'https://wa.me/' . $whatsappNumber . '?text=' . rawurlencode($message)
+                : 'https://web.whatsapp.com/',
         ]);
     }
 
@@ -55,6 +79,7 @@ class HomeController extends Controller
         if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
             Auth::flash('login_error', 'Sesi login sudah kedaluwarsa. Silakan coba lagi.');
             Auth::flash('old_username', $username);
+            Auth::flash('old_remember', $remember ? '1' : '0');
             Auth::redirect('/admin/login');
         }
 
@@ -64,6 +89,7 @@ class HomeController extends Controller
 
         Auth::flash('login_error', 'Username atau password tidak sesuai.');
         Auth::flash('old_username', $username);
+        Auth::flash('old_remember', $remember ? '1' : '0');
         Auth::redirect('/admin/login');
     }
 
@@ -441,6 +467,7 @@ class HomeController extends Controller
             'title' => 'Pengaturan - Ghava Laundry',
             'admin' => Auth::user(),
             'settings' => $this->laundry()->settings(),
+            'operationalStatus' => $this->laundry()->operationalStatus(),
             'csrfToken' => Auth::csrfToken(),
             'successMessage' => Auth::pullFlash('admin_success'),
             'errorMessage' => Auth::pullFlash('admin_error'),
@@ -517,6 +544,25 @@ class HomeController extends Controller
         ];
 
         $this->view($view, $data);
+    }
+
+    private function normalizeWhatsappNumber(string $value): string
+    {
+        $phone = preg_replace('/\D+/', '', $value) ?: '';
+
+        if ($phone === '') {
+            return '';
+        }
+
+        if (str_starts_with($phone, '0')) {
+            return '62' . substr($phone, 1);
+        }
+
+        if (str_starts_with($phone, '8')) {
+            return '62' . $phone;
+        }
+
+        return $phone;
     }
 
     private function laundryFilters(): array

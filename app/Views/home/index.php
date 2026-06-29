@@ -3,11 +3,48 @@
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
 $settings = $settings ?? [];
 $trackingResult = $trackingResult ?? null;
-$trackingSearch = (string) ($trackingSearch ?? '');
+$trackingSearch = trim((string) ($trackingSearch ?? ''));
+$trackingHasSearch = $trackingSearch !== '';
+$trackingFound = is_array($trackingResult);
 $setting = static fn (string $key, string $fallback = ''): string => (string) ($settings[$key] ?? $fallback);
-$whatsappNumber = preg_replace('/\D+/', '', $setting('whatsapp', '081242910340'));
+$whatsappDisplay = $setting('whatsapp', '081242910340') ?: '081242910340';
+$whatsappNumber = preg_replace('/\D+/', '', $whatsappDisplay);
 $whatsappNumber = str_starts_with($whatsappNumber, '0') ? '62' . substr($whatsappNumber, 1) : $whatsappNumber;
+$whatsappMessage = $trackingHasSearch
+    ? 'Halo admin Ghava Laundry, saya ingin menanyakan status cucian dengan nomor nota ' . $trackingSearch . '.'
+    : 'Halo admin Ghava Laundry, saya ingin menanyakan status cucian.';
+$whatsappHref = $whatsappNumber !== ''
+    ? 'https://wa.me/' . $whatsappNumber . '?text=' . rawurlencode($whatsappMessage)
+    : 'https://web.whatsapp.com/';
 $whatsappLogo = '<img class="whatsapp-logo-image" src="' . $safeBaseUrl . '/assets/img/logo-wa.jpg?v=1" alt="">';
+$operationalStatus = $operationalStatus ?? ['status' => 'Buka', 'text' => 'Buka sampai ' . str_replace(':', '.', $setting('close_time', '21:00')) . ' WITA.', 'tone' => 'open'];
+$operationalTone = preg_replace('/[^a-z]/', '', (string) ($operationalStatus['tone'] ?? 'open')) ?: 'open';
+$operationalStatusClass = 'operational-status-badge is-' . $operationalTone;
+$weekdayLabels = [
+    '1' => 'Senin',
+    '2' => 'Selasa',
+    '3' => 'Rabu',
+    '4' => 'Kamis',
+    '5' => 'Jumat',
+    '6' => 'Sabtu',
+    '0' => 'Minggu',
+];
+$closedWeekdayLabels = [];
+
+foreach (array_filter(explode(',', $setting('closed_weekdays', '')), static fn (string $day): bool => $day !== '') as $day) {
+    if (isset($weekdayLabels[$day])) {
+        $closedWeekdayLabels[] = $weekdayLabels[$day];
+    }
+}
+
+$weeklyOperationalText = $closedWeekdayLabels === [] ? 'Setiap Hari' : 'Libur: ' . implode(', ', $closedWeekdayLabels);
+$ishomaText = $setting('ishoma_enabled', '1') === '1'
+    ? 'Ishoma ' . str_replace(':', '.', $setting('ishoma_start_time', '12:00')) . ' - ' . str_replace(':', '.', $setting('ishoma_end_time', '13:00')) . ' WITA'
+    : $weeklyOperationalText;
+
+if (($operationalStatus['status'] ?? '') === 'Buka') {
+    $operationalStatusClass .= ' open-status';
+}
 
 if (!function_exists('homeIcon')) {
     function homeIcon(string $name): string
@@ -60,7 +97,7 @@ $trackingDetail = [
     'status' => 'Dicuci',
 ];
 
-if (is_array($trackingResult)) {
+if ($trackingFound) {
     $trackingDetail = [
         'nota' => $trackingResult['nota'],
         'tanggal_masuk' => $trackingResult['tanggal_masuk'],
@@ -89,6 +126,20 @@ if (is_array($trackingResult)) {
     }, $trackingResult['steps']);
 }
 
+$trackingCurrentIndex = 0;
+
+foreach ($trackingSteps as $index => $step) {
+    if (($step['state'] ?? '') === 'current') {
+        $trackingCurrentIndex = $index;
+        break;
+    }
+}
+
+$trackingProgressWidth = count($trackingSteps) > 1
+    ? min(100, max(0, ($trackingCurrentIndex / (count($trackingSteps) - 1)) * 100))
+    : 0;
+$trackingHeading = $trackingHasSearch ? 'Hasil Tracking Cucian' : 'Contoh Hasil Tracking';
+
 $kiloanServices = [
     ['icon' => homeIcon('washer'), 'title' => 'Cuci Kering', 'text' => 'Cucian dicuci dan dikeringkan hingga bersih dan wangi.'],
     ['icon' => homeIcon('towels'), 'title' => 'Cuci Lipat', 'text' => 'Cuci bersih kemudian dilipat rapi siap pakai.'],
@@ -112,9 +163,9 @@ $howToSteps = [
 ];
 
 $contactItems = [
-    ['icon' => $whatsappLogo, 'iconClass' => 'whatsapp-logo-icon', 'label' => 'WhatsApp', 'title' => $setting('whatsapp', '081242910340'), 'text' => 'Fast response selama jam operasional'],
-    ['icon' => homeIcon('clock'), 'label' => 'Jam Operasional', 'title' => str_replace(':', '.', $setting('open_time', '07:00')) . ' - ' . str_replace(':', '.', $setting('close_time', '21:00')) . ' WITA', 'text' => 'Setiap Hari'],
-    ['icon' => homeIcon('store'), 'label' => 'Status Operasional Hari Ini', 'title' => 'Buka', 'text' => 'Status dapat juga Ishoma, Tutup, atau Libur'],
+    ['icon' => $whatsappLogo, 'iconClass' => 'whatsapp-logo-icon', 'label' => 'WhatsApp', 'title' => $whatsappDisplay, 'text' => 'Fast response selama jam operasional'],
+    ['icon' => homeIcon('clock'), 'label' => 'Jam Operasional', 'title' => str_replace(':', '.', $setting('open_time', '07:00')) . ' - ' . str_replace(':', '.', $setting('close_time', '21:00')) . ' WITA', 'text' => $weeklyOperationalText],
+    ['icon' => homeIcon('store'), 'label' => 'Status Operasional Hari Ini', 'title' => (string) ($operationalStatus['status'] ?? 'Buka'), 'text' => (string) ($operationalStatus['text'] ?? $ishomaText), 'titleClass' => $operationalStatusClass],
     ['icon' => homeIcon('map'), 'label' => 'Alamat', 'title' => $setting('address', 'Jl. Poros Hartaco Indah, Kelurahan Sudiang Raya, Kecamatan Biringkanaya, Kota Makassar, Sulawesi Selatan 90242'), 'text' => ''],
 ];
 
@@ -155,17 +206,17 @@ $faqItems = [
             </div>
 
             <div class="home-side" id="tracking">
-                <form class="home-tracking-card" id="trackingForm" action="<?= $safeBaseUrl ?>/" method="get">
+                <form class="home-tracking-card" id="trackingForm" action="<?= $safeBaseUrl ?>/#hasil-tracking" method="get">
                     <h2>Cek Status Cucian</h2>
                     <label class="home-input-wrap" for="nomorNota">
                         <span aria-hidden="true"><?= homeIcon('receipt') ?></span>
-                        <input id="nomorNota" name="nota" type="text" inputmode="text" placeholder="Masukkan No. Nota" aria-label="Nomor nota" value="<?= htmlspecialchars($trackingSearch, ENT_QUOTES, 'UTF-8') ?>">
+                        <input id="nomorNota" name="nota" type="text" inputmode="text" placeholder="Masukkan No. Nota" aria-label="Nomor nota" value="<?= htmlspecialchars($trackingSearch, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off" required>
                     </label>
                     <button class="primary-button" type="submit">
                         <span aria-hidden="true"><?= homeIcon('search') ?></span>
                         Cek Status
                     </button>
-                    <a class="whatsapp-button" href="https://wa.me/<?= htmlspecialchars($whatsappNumber, ENT_QUOTES, 'UTF-8') ?>">
+                    <a class="whatsapp-button" href="<?= htmlspecialchars($whatsappHref, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">
                         <span class="whatsapp-button-icon" aria-hidden="true"><?= $whatsappLogo ?></span>
                         Hubungi Admin WhatsApp
                     </a>
@@ -173,11 +224,12 @@ $faqItems = [
             </div>
         </section>
 
-        <section class="tracking-example home-panel" aria-labelledby="trackingExampleTitle">
-            <h2 id="trackingExampleTitle">Contoh Hasil Tracking</h2>
-            <?php if ($trackingSearch !== '' && !is_array($trackingResult)): ?>
+        <section class="tracking-example home-panel" id="hasil-tracking" aria-labelledby="trackingExampleTitle">
+            <h2 id="trackingExampleTitle"><?= htmlspecialchars($trackingHeading, ENT_QUOTES, 'UTF-8') ?></h2>
+            <?php if ($trackingHasSearch && !$trackingFound): ?>
                 <div class="admin-flash error">Nomor nota <?= htmlspecialchars($trackingSearch, ENT_QUOTES, 'UTF-8') ?> belum ditemukan.</div>
             <?php endif; ?>
+            <?php if ($trackingFound || !$trackingHasSearch): ?>
             <div class="tracking-example-body">
                 <dl class="tracking-detail-list">
                     <div>
@@ -206,7 +258,7 @@ $faqItems = [
                     </div>
                 </dl>
 
-                <div class="tracking-progress" aria-label="Progress cucian">
+                <div class="tracking-progress" style="--tracking-progress-width: <?= htmlspecialchars(number_format($trackingProgressWidth, 4, '.', ''), ENT_QUOTES, 'UTF-8') ?>%;" aria-label="Progress cucian">
                     <?php foreach ($trackingSteps as $step): ?>
                         <article class="tracking-step <?= $step['state'] ? 'is-' . htmlspecialchars($step['state'], ENT_QUOTES, 'UTF-8') : '' ?>">
                             <span aria-hidden="true"><?= $step['icon'] ?></span>
@@ -217,6 +269,7 @@ $faqItems = [
                     <?php endforeach; ?>
                 </div>
             </div>
+            <?php endif; ?>
         </section>
 
         <section class="home-services home-panel" id="layanan">
@@ -273,7 +326,7 @@ $faqItems = [
                         <span class="home-info-icon <?= htmlspecialchars($item['iconClass'] ?? '', ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"><?= $item['icon'] ?></span>
                         <div>
                             <small><?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8') ?></small>
-                            <strong class="<?= $item['title'] === 'Buka' ? 'open-status' : '' ?>"><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong class="<?= htmlspecialchars($item['titleClass'] ?? '', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></strong>
                             <p><?= htmlspecialchars($item['text'], ENT_QUOTES, 'UTF-8') ?></p>
                         </div>
                     </article>
@@ -302,7 +355,7 @@ $faqItems = [
                         Cek Status Cucian
                         <span aria-hidden="true">&rsaquo;</span>
                     </a>
-                    <a class="cta-whatsapp-button" href="https://wa.me/<?= htmlspecialchars($whatsappNumber, ENT_QUOTES, 'UTF-8') ?>">
+                    <a class="cta-whatsapp-button" href="<?= htmlspecialchars($whatsappHref, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">
                         <span aria-hidden="true"><?= $whatsappLogo ?></span>
                         Hubungi Admin WhatsApp
                     </a>
@@ -323,7 +376,7 @@ $faqItems = [
                 </a>
                 <p>Layanan laundry terpercaya dengan proses jelas, cepat, dan hasil terbaik untuk Anda.</p>
                 <div class="footer-socials" aria-label="Media sosial">
-                    <a href="https://wa.me/<?= htmlspecialchars($whatsappNumber, ENT_QUOTES, 'UTF-8') ?>" aria-label="WhatsApp"><?= $whatsappLogo ?></a>
+                    <a href="<?= htmlspecialchars($whatsappHref, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener" aria-label="WhatsApp"><?= $whatsappLogo ?></a>
                     <a href="#" aria-label="Instagram"><?= homeIcon('instagram') ?></a>
                     <a href="#" aria-label="Facebook"><?= homeIcon('facebook') ?></a>
                 </div>
@@ -347,7 +400,7 @@ $faqItems = [
 
             <section class="footer-contact">
                 <h2>Kontak</h2>
-                <p><span aria-hidden="true"><?= homeIcon('phone') ?></span><?= htmlspecialchars($setting('whatsapp', '081242910340'), ENT_QUOTES, 'UTF-8') ?></p>
+                <p><span aria-hidden="true"><?= homeIcon('phone') ?></span><?= htmlspecialchars($whatsappDisplay, ENT_QUOTES, 'UTF-8') ?></p>
                 <p><span aria-hidden="true"><?= homeIcon('clock') ?></span><?= htmlspecialchars(str_replace(':', '.', $setting('open_time', '07:00')) . ' - ' . str_replace(':', '.', $setting('close_time', '21:00')) . ' WITA', ENT_QUOTES, 'UTF-8') ?></p>
                 <p><span aria-hidden="true"><?= homeIcon('map') ?></span><?= htmlspecialchars($setting('address', 'Jl. Poros Hartaco Indah, Kel. Sudiang Raya, Kec. Biringkanaya, Kota Makassar, Sulawesi Selatan 90242'), ENT_QUOTES, 'UTF-8') ?></p>
             </section>
