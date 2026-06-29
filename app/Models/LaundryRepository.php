@@ -11,6 +11,7 @@ use Throwable;
 class LaundryRepository extends Model
 {
     private const STATUSES = ['Antrean', 'Diproses', 'Dicuci', 'Dikeringkan', 'Disetrika', 'Selesai', 'Diambil'];
+    private const DATE_FORMATS = ['DD MMMM YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'];
 
     private const STATUS_TONES = [
         'Antrean' => 'blue',
@@ -21,6 +22,9 @@ class LaundryRepository extends Model
         'Selesai' => 'purple',
         'Diambil' => 'green',
     ];
+
+    private const TOPBAR_NOTIFICATION_TYPES = ['cucian', 'status', 'pelanggan', 'paket', 'pengaturan', 'sistem'];
+    private const TOPBAR_MESSAGE_TYPES = ['tracking'];
 
     private const DEFAULT_SETTINGS = [
         'admin_email' => 'admin@ghavalaundry.com',
@@ -35,6 +39,8 @@ class LaundryRepository extends Model
         'date_format' => 'DD MMMM YYYY',
         'logout_confirmation' => '1',
     ];
+
+    private ?array $settingsCache = null;
 
     private function pdo(): PDO
     {
@@ -70,12 +76,18 @@ class LaundryRepository extends Model
 
     public function settings(): array
     {
+        if ($this->settingsCache !== null) {
+            return $this->settingsCache;
+        }
+
         $settings = self::DEFAULT_SETTINGS;
         $statement = $this->pdo()->query('SELECT setting_key, setting_value FROM pengaturan');
 
         foreach ($statement->fetchAll() as $row) {
             $settings[$row['setting_key']] = (string) $row['setting_value'];
         }
+
+        $this->settingsCache = $settings;
 
         return $settings;
     }
@@ -85,22 +97,15 @@ class LaundryRepository extends Model
         $admin = $this->findAdminById($adminId);
         $username = trim((string) ($payload['username'] ?? ($admin['username'] ?? 'admin')));
         $newPassword = (string) ($payload['new_password'] ?? '');
+        $settings = $this->validatedSettingsPayload($payload);
 
-        $settings = [
-            'admin_email' => trim((string) ($payload['email'] ?? '')),
-            'laundry_name' => trim((string) ($payload['laundry_name'] ?? '')),
-            'whatsapp' => trim((string) ($payload['whatsapp'] ?? '')),
-            'address' => trim((string) ($payload['address'] ?? '')),
-            'open_time' => trim((string) ($payload['open_time'] ?? '')),
-            'close_time' => trim((string) ($payload['close_time'] ?? '')),
-            'message' => trim((string) ($payload['message'] ?? '')),
-            'browser_notification' => isset($payload['browser_notification']) ? '1' : '0',
-            'message_notification' => isset($payload['message_notification']) ? '1' : '0',
-            'date_format' => trim((string) ($payload['date_format'] ?? 'DD MMMM YYYY')),
-            'logout_confirmation' => isset($payload['logout_confirmation']) ? '1' : '0',
-        ];
+        if ($username === '') {
+            throw new \InvalidArgumentException('Username admin wajib diisi.');
+        }
 
-        $settings = array_map(static fn (string $value): string => $value === '' ? '-' : $value, $settings);
+        if ($newPassword !== '' && strlen($newPassword) < 6) {
+            throw new \InvalidArgumentException('Password baru minimal 6 karakter.');
+        }
 
         $this->pdo()->beginTransaction();
 
@@ -138,6 +143,7 @@ class LaundryRepository extends Model
             }
 
             $this->pdo()->commit();
+            $this->settingsCache = null;
         } catch (Throwable $error) {
             $this->pdo()->rollBack();
             throw $error;
@@ -304,8 +310,10 @@ class LaundryRepository extends Model
         ];
     }
 
-    public function orderRows(int $limit = 10, ?array $range = null, array $filters = []): array
+    public function orderRows(int $limit = 10, ?array $range = null, array $filters = [], int $offset = 0): array
     {
+        $limit = max(1, $limit);
+        $offset = max(0, $offset);
         [$dateCondition, $params] = $this->dateRangeCondition('t.tanggal_masuk', $range, 'orders');
         [$filterConditions, $filterParams] = $this->orderFilterConditions($filters, 'orders');
         $where = $this->whereClause(array_merge([$dateCondition], $filterConditions));
@@ -323,6 +331,7 @@ class LaundryRepository extends Model
                 p.nama_pelanggan,
                 p.no_telp,
                 p.alamat,
+                MIN(d.id_paket) AS id_paket,
                 GROUP_CONCAT(pl.nama_paket ORDER BY d.id_detail SEPARATOR ", ") AS layanan,
                 SUM(d.berat) AS total_berat,
                 MIN(d.satuan) AS satuan
@@ -336,23 +345,32 @@ class LaundryRepository extends Model
                 t.status_cucian, t.total_harga, t.catatan,
                 p.nama_pelanggan, p.no_telp, p.alamat
              ORDER BY t.tanggal_masuk DESC, t.no_nota DESC
-             LIMIT :limit'
+             LIMIT :limit OFFSET :offset'
         );
         $this->bindStatementParams($statement, $params);
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->bindValue(':offset', $offset, PDO::PARAM_INT);
         $statement->execute();
 
         $rows = [];
 
         foreach ($statement->fetchAll() as $index => $row) {
-            $rows[] = $this->presentOrderRow($row, $index + 1);
+            $rows[] = $this->presentOrderRow($row, $offset + $index + 1);
         }
 
         return $rows;
     }
 
-    public function customerRows(int $limit = 10): array
+    public function customerRows(int $limit = 10, ?array $range = null, array $filters = [], int $offset = 0): array
     {
+        $limit = max(1, $limit);
+        $offset = max(0, $offset);
+        [$dateCondition, $params] = $this->dateRangeCondition('p.created_at', $range, 'customers');
+        [$filterConditions, $havingConditions, $filterParams] = $this->customerFilterConditions($filters, 'customers');
+        $where = $this->whereClause(array_merge([$dateCondition], $filterConditions));
+        $having = $this->havingClause($havingConditions);
+        $params = array_merge($params, $filterParams);
+
         $statement = $this->pdo()->prepare(
             'SELECT
                 p.id_pelanggan,
@@ -365,25 +383,34 @@ class LaundryRepository extends Model
                 MAX(t.tanggal_masuk) AS last_transaction
              FROM pelanggan p
              LEFT JOIN transaksi t ON t.id_pelanggan = p.id_pelanggan
+             ' . $where . '
              GROUP BY p.id_pelanggan, p.nama_pelanggan, p.no_telp, p.alamat, p.created_at
+             ' . $having . '
              ORDER BY p.created_at DESC
-             LIMIT :limit'
+             LIMIT :limit OFFSET :offset'
         );
+        $this->bindStatementParams($statement, $params);
         $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->bindValue(':offset', $offset, PDO::PARAM_INT);
         $statement->execute();
 
         $customers = [];
 
         foreach ($statement->fetchAll() as $index => $row) {
+            $address = (string) ($row['alamat'] ?? '');
+
             $customers[] = [
-                'no' => $index + 1,
+                'no' => $offset + $index + 1,
+                'database_id' => (int) $row['id_pelanggan'],
                 'id' => $this->formatCustomerCode((int) $row['id_pelanggan']),
                 'name' => $row['nama_pelanggan'],
                 'phone' => $row['no_telp'],
-                'address' => $row['alamat'] ?: '-',
+                'address' => $address !== '' ? $address : '-',
+                'address_value' => $address,
                 'transactions' => (int) $row['transaksi_count'],
                 'active' => (int) $row['active_count'],
                 'last' => $row['last_transaction'] ? $this->formatDate($row['last_transaction']) : '-',
+                'created' => !empty($row['created_at']) ? $this->formatDate((string) $row['created_at']) : '-',
             ];
         }
 
@@ -467,12 +494,12 @@ class LaundryRepository extends Model
         }, $rows);
     }
 
-    public function statusOrders(int $limit = 10): array
+    public function statusOrders(int $limit = 10, ?array $range = null, array $filters = []): array
     {
         $orders = [];
         $history = $this->historyByNota();
 
-        foreach ($this->orderRows($limit) as $row) {
+        foreach ($this->orderRows($limit, $range, $filters) as $row) {
             $steps = [];
             $orderHistory = $history[$row['nota']] ?? [];
 
@@ -574,6 +601,137 @@ class LaundryRepository extends Model
         return $nota;
     }
 
+    public function updateLaundry(array $payload, int $adminId): string
+    {
+        $nota = trim((string) ($payload['nota'] ?? ''));
+        $customerName = trim((string) ($payload['customer_name'] ?? ''));
+        $phone = trim((string) ($payload['phone'] ?? ''));
+        $package = $this->findPackage((string) ($payload['service'] ?? ''));
+        $weight = max(0, (float) ($payload['weight'] ?? 0));
+        $unit = trim((string) ($payload['unit'] ?? 'kg')) ?: 'kg';
+        $status = $this->normalizeStatus((string) ($payload['initial_status'] ?? 'Antrean'));
+        $total = max(0, (float) ($payload['total'] ?? 0));
+        $notes = trim((string) ($payload['notes'] ?? ''));
+        $dateIn = $this->normalizeDate((string) ($payload['date_in'] ?? ''), true);
+        $eta = $this->normalizeDate((string) ($payload['eta'] ?? ''), false);
+
+        if ($nota === '' || $customerName === '' || $phone === '' || $package === null || $weight <= 0 || $total <= 0) {
+            throw new \InvalidArgumentException('Data cucian belum lengkap.');
+        }
+
+        $current = $this->pdo()->prepare('SELECT status_cucian FROM transaksi WHERE no_nota = :nota LIMIT 1');
+        $current->execute(['nota' => $nota]);
+        $currentStatus = $current->fetchColumn();
+
+        if (!$currentStatus) {
+            throw new \InvalidArgumentException('Data cucian tidak ditemukan.');
+        }
+
+        $this->pdo()->beginTransaction();
+
+        try {
+            $customerId = $this->findOrCreateCustomer($customerName, $phone);
+            $transaction = $this->pdo()->prepare(
+                'UPDATE transaksi
+                 SET id_pelanggan = :id_pelanggan,
+                     id_admin = :id_admin,
+                     tanggal_masuk = :tanggal_masuk,
+                     estimasi_selesai = :estimasi_selesai,
+                     status_cucian = :status_cucian,
+                     tanggal_selesai = CASE
+                         WHEN :status_done = 1 THEN COALESCE(tanggal_selesai, NOW())
+                         ELSE tanggal_selesai
+                     END,
+                     total_harga = :total_harga,
+                     catatan = :catatan
+                 WHERE no_nota = :no_nota'
+            );
+            $transaction->execute([
+                'id_pelanggan' => $customerId,
+                'id_admin' => $adminId,
+                'tanggal_masuk' => $dateIn,
+                'estimasi_selesai' => $eta,
+                'status_cucian' => $status,
+                'status_done' => in_array($status, ['Selesai', 'Diambil'], true) ? 1 : 0,
+                'total_harga' => $total,
+                'catatan' => $notes !== '' ? $notes : null,
+                'no_nota' => $nota,
+            ]);
+
+            $this->pdo()->prepare('DELETE FROM detail_transaksi WHERE no_nota = :nota')->execute(['nota' => $nota]);
+
+            $detail = $this->pdo()->prepare(
+                'INSERT INTO detail_transaksi (no_nota, id_paket, berat, subtotal, satuan)
+                 VALUES (:no_nota, :id_paket, :berat, :subtotal, :satuan)'
+            );
+            $detail->execute([
+                'no_nota' => $nota,
+                'id_paket' => $package['id_paket'],
+                'berat' => $weight,
+                'subtotal' => $total,
+                'satuan' => $unit,
+            ]);
+
+            if ($currentStatus !== $status) {
+                $this->insertHistory($nota, $adminId, $status, 'Status cucian diperbarui melalui edit data cucian.');
+            }
+
+            $this->pdo()->commit();
+        } catch (Throwable $error) {
+            $this->pdo()->rollBack();
+            throw $error;
+        }
+
+        $this->recordActivity($adminId, 'cucian', 'Data cucian diperbarui', $nota . ' - ' . $customerName, $nota);
+
+        return $nota;
+    }
+
+    public function deleteLaundry(string $nota, int $adminId): string
+    {
+        $nota = trim($nota);
+
+        if ($nota === '') {
+            throw new \InvalidArgumentException('Nomor nota tidak valid.');
+        }
+
+        $statement = $this->pdo()->prepare(
+            'SELECT t.no_nota, p.nama_pelanggan
+             FROM transaksi t
+             JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
+             WHERE t.no_nota = :nota
+             LIMIT 1'
+        );
+        $statement->execute(['nota' => $nota]);
+        $row = $statement->fetch();
+
+        if (!is_array($row)) {
+            throw new \InvalidArgumentException('Data cucian tidak ditemukan.');
+        }
+
+        $this->pdo()->beginTransaction();
+
+        try {
+            $this->pdo()->prepare('DELETE FROM detail_transaksi WHERE no_nota = :nota')->execute(['nota' => $nota]);
+            $this->pdo()->prepare('DELETE FROM riwayat_status WHERE no_nota = :nota')->execute(['nota' => $nota]);
+            $delete = $this->pdo()->prepare('DELETE FROM transaksi WHERE no_nota = :nota');
+            $delete->execute(['nota' => $nota]);
+
+            if ($delete->rowCount() === 0) {
+                throw new \InvalidArgumentException('Data cucian tidak ditemukan.');
+            }
+
+            $this->pdo()->commit();
+        } catch (Throwable $error) {
+            $this->pdo()->rollBack();
+            throw $error;
+        }
+
+        $this->recordActivity($adminId, 'cucian', 'Data cucian dihapus', $nota . ' - ' . $row['nama_pelanggan'], $nota);
+
+        return $nota;
+    }
+
     public function createCustomer(array $payload, int $adminId): string
     {
         $customerName = trim((string) ($payload['customer_name'] ?? ''));
@@ -603,6 +761,97 @@ class LaundryRepository extends Model
 
         $customerCode = $this->formatCustomerCode((int) $this->pdo()->lastInsertId());
         $this->recordActivity($adminId, 'pelanggan', 'Pelanggan baru ditambahkan', $customerCode . ' - ' . $customerName, $customerCode);
+
+        return $customerCode;
+    }
+
+    public function updateCustomer(array $payload, int $adminId): string
+    {
+        $customerId = max(0, (int) ($payload['customer_id'] ?? 0));
+        $customerName = trim((string) ($payload['customer_name'] ?? ''));
+        $phone = trim((string) ($payload['phone'] ?? ''));
+        $address = trim((string) ($payload['address'] ?? ''));
+
+        if ($customerId <= 0) {
+            throw new \InvalidArgumentException('Pelanggan tidak valid.');
+        }
+
+        if ($customerName === '' || $phone === '') {
+            throw new \InvalidArgumentException('Data pelanggan belum lengkap.');
+        }
+
+        $current = $this->findCustomer($customerId);
+
+        if ($current === null) {
+            throw new \InvalidArgumentException('Data pelanggan tidak ditemukan.');
+        }
+
+        $existing = $this->pdo()->prepare(
+            'SELECT id_pelanggan
+             FROM pelanggan
+             WHERE no_telp = :phone
+                AND id_pelanggan <> :id
+             LIMIT 1'
+        );
+        $existing->execute([
+            'id' => $customerId,
+            'phone' => $phone,
+        ]);
+
+        if ($existing->fetchColumn()) {
+            throw new \InvalidArgumentException('No. telepon sudah terdaftar sebagai pelanggan lain.');
+        }
+
+        $update = $this->pdo()->prepare(
+            'UPDATE pelanggan
+             SET nama_pelanggan = :name,
+                 no_telp = :phone,
+                 alamat = :address
+             WHERE id_pelanggan = :id'
+        );
+        $update->execute([
+            'id' => $customerId,
+            'name' => $customerName,
+            'phone' => $phone,
+            'address' => $address !== '' ? $address : null,
+        ]);
+
+        $customerCode = $this->formatCustomerCode($customerId);
+        $this->recordActivity($adminId, 'pelanggan', 'Pelanggan diperbarui', $customerCode . ' - ' . $customerName, $customerCode);
+
+        return $customerCode;
+    }
+
+    public function deleteCustomer(int $customerId, int $adminId): string
+    {
+        if ($customerId <= 0) {
+            throw new \InvalidArgumentException('Pelanggan tidak valid.');
+        }
+
+        $customer = $this->findCustomer($customerId);
+
+        if ($customer === null) {
+            throw new \InvalidArgumentException('Data pelanggan tidak ditemukan.');
+        }
+
+        $transactionCount = (int) $this->scalar(
+            'SELECT COUNT(*) FROM transaksi WHERE id_pelanggan = :id',
+            ['id' => $customerId]
+        );
+
+        if ($transactionCount > 0) {
+            throw new \InvalidArgumentException('Pelanggan sudah memiliki transaksi, sehingga tidak bisa dihapus agar riwayat laundry tetap tersimpan.');
+        }
+
+        $delete = $this->pdo()->prepare('DELETE FROM pelanggan WHERE id_pelanggan = :id');
+        $delete->execute(['id' => $customerId]);
+
+        if ($delete->rowCount() === 0) {
+            throw new \InvalidArgumentException('Data pelanggan tidak ditemukan.');
+        }
+
+        $customerCode = $this->formatCustomerCode($customerId);
+        $this->recordActivity($adminId, 'pelanggan', 'Pelanggan dihapus', $customerCode . ' - ' . $customer['nama_pelanggan'], $customerCode);
 
         return $customerCode;
     }
@@ -901,6 +1150,45 @@ class LaundryRepository extends Model
         }, $statement->fetchAll());
     }
 
+    public function topbarNotifications(?int $adminId, int $limit = 5): array
+    {
+        $readMarker = $this->topbarReadMarker('notifications', $adminId);
+
+        return [
+            'items' => $this->topbarActivityItems(self::TOPBAR_NOTIFICATION_TYPES, $readMarker, $limit),
+            'unread_count' => $this->topbarUnreadCount(self::TOPBAR_NOTIFICATION_TYPES, $readMarker),
+        ];
+    }
+
+    public function topbarMessages(?int $adminId, int $limit = 5): array
+    {
+        $readMarker = $this->topbarReadMarker('messages', $adminId);
+
+        return [
+            'items' => $this->topbarMessageItems($readMarker, $limit),
+            'unread_count' => $this->topbarUnreadCount(self::TOPBAR_MESSAGE_TYPES, $readMarker),
+        ];
+    }
+
+    public function markTopbarRead(string $type, ?int $adminId): void
+    {
+        $types = match ($type) {
+            'notifications' => self::TOPBAR_NOTIFICATION_TYPES,
+            'messages' => self::TOPBAR_MESSAGE_TYPES,
+            default => throw new \InvalidArgumentException('Jenis notifikasi tidak valid.'),
+        };
+
+        [$condition, $params] = $this->activityTypeCondition($types, 'mark_topbar');
+        $lastId = (int) $this->scalar(
+            'SELECT COALESCE(MAX(a.id_aktivitas), 0)
+             FROM aktivitas a
+             WHERE ' . $condition,
+            $params
+        );
+
+        $this->saveSettingValue($this->topbarReadMarkerKey($type, $adminId), (string) $lastId);
+    }
+
     public function countOrders(?array $range = null, array $filters = []): int
     {
         [$dateCondition, $params] = $this->dateRangeCondition('t.tanggal_masuk', $range, 'count_orders');
@@ -917,9 +1205,231 @@ class LaundryRepository extends Model
         );
     }
 
-    public function countCustomers(): int
+    public function countCustomers(?array $range = null, array $filters = []): int
     {
-        return (int) $this->pdo()->query('SELECT COUNT(*) FROM pelanggan')->fetchColumn();
+        [$dateCondition, $params] = $this->dateRangeCondition('p.created_at', $range, 'count_customers');
+        [$filterConditions, $havingConditions, $filterParams] = $this->customerFilterConditions($filters, 'count_customers');
+        $where = $this->whereClause(array_merge([$dateCondition], $filterConditions));
+        $having = $this->havingClause($havingConditions);
+        $params = array_merge($params, $filterParams);
+
+        return (int) $this->scalar(
+            'SELECT COUNT(*)
+             FROM (
+                SELECT
+                    p.id_pelanggan,
+                    SUM(CASE WHEN t.status_cucian NOT IN ("Selesai", "Diambil") THEN 1 ELSE 0 END) AS active_count
+                FROM pelanggan p
+                LEFT JOIN transaksi t ON t.id_pelanggan = p.id_pelanggan
+                ' . $where . '
+                GROUP BY p.id_pelanggan, p.created_at
+                ' . $having . '
+             ) customer_filter',
+            $params
+        );
+    }
+
+    private function topbarActivityItems(array $types, int $readMarker, int $limit): array
+    {
+        [$condition, $params] = $this->activityTypeCondition($types, 'topbar_activity');
+        $statement = $this->pdo()->prepare(
+            'SELECT a.*, COALESCE(ad.nama_lengkap, "Sistem") AS admin_name
+             FROM aktivitas a
+             LEFT JOIN admin ad ON ad.id_admin = a.id_admin
+             WHERE ' . $condition . '
+             ORDER BY a.created_at DESC, a.id_aktivitas DESC
+             LIMIT :limit'
+        );
+
+        $this->bindStatementParams($statement, $params);
+        $statement->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
+        $statement->execute();
+
+        return array_map(function (array $row) use ($readMarker): array {
+            return [
+                'id' => (int) $row['id_aktivitas'],
+                'icon' => $this->activityIcon($row['tipe']),
+                'tone' => $this->activityTone($row['tipe']),
+                'title' => $row['judul'],
+                'detail' => $row['detail'] ?: ($row['admin_name'] ?? 'Sistem'),
+                'time' => $this->timeAgo($row['created_at']),
+                'is_unread' => (int) $row['id_aktivitas'] > $readMarker,
+            ];
+        }, $statement->fetchAll());
+    }
+
+    private function topbarMessageItems(int $readMarker, int $limit): array
+    {
+        [$condition, $params] = $this->activityTypeCondition(self::TOPBAR_MESSAGE_TYPES, 'topbar_message');
+        $statement = $this->pdo()->prepare(
+            'SELECT
+                a.*,
+                p.nama_pelanggan,
+                p.no_telp
+             FROM aktivitas a
+             LEFT JOIN transaksi t ON t.no_nota = a.referensi
+             LEFT JOIN pelanggan p ON p.id_pelanggan = t.id_pelanggan
+             WHERE ' . $condition . '
+             ORDER BY a.created_at DESC, a.id_aktivitas DESC
+             LIMIT :limit'
+        );
+
+        $this->bindStatementParams($statement, $params);
+        $statement->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
+        $statement->execute();
+
+        return array_map(function (array $row) use ($readMarker): array {
+            $nota = trim((string) ($row['referensi'] ?? ''));
+            $name = trim((string) ($row['nama_pelanggan'] ?? ''));
+            $phone = $this->normalizeWhatsappNumber((string) ($row['no_telp'] ?? ''));
+
+            return [
+                'id' => (int) $row['id_aktivitas'],
+                'title' => 'Pesan dari ' . ($name !== '' ? $name : 'pelanggan'),
+                'detail' => $nota !== ''
+                    ? 'Pelanggan menanyakan status cucian dengan nomor nota ' . $nota . '.'
+                    : ((string) ($row['detail'] ?? '') ?: 'Pelanggan menghubungi admin melalui WhatsApp.'),
+                'time' => $this->timeAgo($row['created_at']),
+                'url' => $phone !== '' ? 'https://wa.me/' . $phone : 'https://web.whatsapp.com/',
+                'is_unread' => (int) $row['id_aktivitas'] > $readMarker,
+            ];
+        }, $statement->fetchAll());
+    }
+
+    private function topbarUnreadCount(array $types, int $readMarker): int
+    {
+        [$condition, $params] = $this->activityTypeCondition($types, 'topbar_unread');
+        $params['read_marker'] = $readMarker;
+
+        return (int) $this->scalar(
+            'SELECT COUNT(*)
+             FROM aktivitas a
+             WHERE a.id_aktivitas > :read_marker
+               AND ' . $condition,
+            $params
+        );
+    }
+
+    private function topbarReadMarker(string $type, ?int $adminId): int
+    {
+        return max(0, (int) ($this->settings()[$this->topbarReadMarkerKey($type, $adminId)] ?? 0));
+    }
+
+    private function topbarReadMarkerKey(string $type, ?int $adminId): string
+    {
+        return 'topbar_' . $type . '_read_id_admin_' . max(0, (int) $adminId);
+    }
+
+    private function activityTypeCondition(array $types, string $prefix): array
+    {
+        if ($types === []) {
+            return ['1 = 0', []];
+        }
+
+        $params = [];
+        $placeholders = [];
+
+        foreach (array_values($types) as $index => $type) {
+            $key = $prefix . '_type_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $type;
+        }
+
+        return ['a.tipe IN (' . implode(',', $placeholders) . ')', $params];
+    }
+
+    private function saveSettingValue(string $key, string $value): void
+    {
+        $statement = $this->pdo()->prepare(
+            'INSERT INTO pengaturan (setting_key, setting_value)
+             VALUES (:setting_key, :setting_value)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+        );
+        $statement->execute([
+            'setting_key' => $key,
+            'setting_value' => $value,
+        ]);
+
+        $this->settingsCache = null;
+    }
+
+    private function normalizeWhatsappNumber(string $value): string
+    {
+        $phone = preg_replace('/\D+/', '', $value) ?: '';
+
+        if ($phone === '') {
+            return '';
+        }
+
+        if (str_starts_with($phone, '0')) {
+            return '62' . substr($phone, 1);
+        }
+
+        if (str_starts_with($phone, '8')) {
+            return '62' . $phone;
+        }
+
+        return $phone;
+    }
+
+    private function validatedSettingsPayload(array $payload): array
+    {
+        $settings = self::DEFAULT_SETTINGS;
+        $email = trim((string) ($payload['email'] ?? ''));
+        $laundryName = trim((string) ($payload['laundry_name'] ?? ''));
+        $whatsapp = preg_replace('/[^\d+]/', '', trim((string) ($payload['whatsapp'] ?? ''))) ?: '';
+        $address = trim((string) ($payload['address'] ?? ''));
+        $message = trim((string) ($payload['message'] ?? ''));
+        $dateFormat = trim((string) ($payload['date_format'] ?? $settings['date_format']));
+
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new \InvalidArgumentException('Email admin belum valid.');
+        }
+
+        if ($laundryName === '') {
+            throw new \InvalidArgumentException('Nama laundry wajib diisi.');
+        }
+
+        if ($whatsapp === '' || strlen(ltrim($whatsapp, '+')) < 9) {
+            throw new \InvalidArgumentException('Nomor WhatsApp belum valid.');
+        }
+
+        if ($address === '') {
+            throw new \InvalidArgumentException('Alamat laundry wajib diisi.');
+        }
+
+        if ($message === '') {
+            throw new \InvalidArgumentException('Pesan otomatis WhatsApp wajib diisi.');
+        }
+
+        if (!in_array($dateFormat, self::DATE_FORMATS, true)) {
+            $dateFormat = $settings['date_format'];
+        }
+
+        return [
+            'admin_email' => $email,
+            'laundry_name' => $laundryName,
+            'whatsapp' => $whatsapp,
+            'address' => $address,
+            'open_time' => $this->normalizeSettingTime((string) ($payload['open_time'] ?? $settings['open_time']), $settings['open_time']),
+            'close_time' => $this->normalizeSettingTime((string) ($payload['close_time'] ?? $settings['close_time']), $settings['close_time']),
+            'message' => substr($message, 0, 300),
+            'browser_notification' => isset($payload['browser_notification']) ? '1' : '0',
+            'message_notification' => isset($payload['message_notification']) ? '1' : '0',
+            'date_format' => $dateFormat,
+            'logout_confirmation' => isset($payload['logout_confirmation']) ? '1' : '0',
+        ];
+    }
+
+    private function normalizeSettingTime(string $time, string $fallback): string
+    {
+        $time = trim($time);
+
+        if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time)) {
+            return $time;
+        }
+
+        return $fallback;
     }
 
     private function scalar(string $sql, array $params = [])
@@ -998,11 +1508,46 @@ class LaundryRepository extends Model
         return [$conditions, $params];
     }
 
+    private function customerFilterConditions(array $filters, string $prefix): array
+    {
+        $conditions = [];
+        $havingConditions = [];
+        $params = [];
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = trim((string) ($filters['status'] ?? ''));
+
+        if ($search !== '') {
+            $conditions[] = '(p.nama_pelanggan LIKE :' . $prefix . '_search
+                OR p.no_telp LIKE :' . $prefix . '_search
+                OR p.alamat LIKE :' . $prefix . '_search
+                OR CONCAT("PLG-", LPAD(p.id_pelanggan, 4, "0")) LIKE :' . $prefix . '_search)';
+            $params[$prefix . '_search'] = '%' . $search . '%';
+        }
+
+        if ($status === 'active') {
+            $havingConditions[] = 'active_count > 0';
+        } elseif ($status === 'new') {
+            $conditions[] = 'p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+        } elseif ($status === 'inactive') {
+            $havingConditions[] = 'active_count = 0';
+        }
+
+        return [$conditions, $havingConditions, $params];
+    }
+
     private function whereClause(array $conditions): string
     {
         $conditions = array_values(array_filter($conditions, static fn ($condition): bool => trim((string) $condition) !== ''));
 
         return $conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions);
+    }
+
+    private function havingClause(array $conditions): string
+    {
+        $conditions = array_values(array_filter($conditions, static fn ($condition): bool => trim((string) $condition) !== ''));
+
+        return $conditions === [] ? '' : ' HAVING ' . implode(' AND ', $conditions);
     }
 
     private function daysInRange(?array $range): int
@@ -1032,14 +1577,21 @@ class LaundryRepository extends Model
             'name' => $row['nama_pelanggan'],
             'phone' => $row['no_telp'],
             'service' => $row['layanan'] ?: '-',
+            'service_id' => (string) ($row['id_paket'] ?? ''),
             'weight' => str_replace('.', ',', rtrim(rtrim(number_format($weight, 2, '.', ''), '0'), '.')) . ' ' . $unit,
+            'weight_value' => $weight,
+            'unit' => $unit,
             'in' => $this->formatDate($row['tanggal_masuk']),
             'in_long' => $this->formatDateTime($row['tanggal_masuk']),
+            'date_in_value' => substr((string) $row['tanggal_masuk'], 0, 10),
             'eta' => $row['estimasi_selesai'] ? $this->formatDate($row['estimasi_selesai']) : '-',
             'eta_long' => $row['estimasi_selesai'] ? $this->formatDateTime($row['estimasi_selesai']) : '-',
+            'eta_value' => $row['estimasi_selesai'] ? substr((string) $row['estimasi_selesai'], 0, 10) : '',
             'total' => $this->formatCurrency((float) $row['total_harga']),
+            'total_value' => (float) $row['total_harga'],
             'status' => $row['status_cucian'],
             'tone' => self::STATUS_TONES[$row['status_cucian']] ?? 'blue',
+            'notes' => (string) ($row['catatan'] ?? ''),
         ];
     }
 
@@ -1147,6 +1699,19 @@ class LaundryRepository extends Model
         $package = $statement->fetch();
 
         return is_array($package) ? $package : null;
+    }
+
+    private function findCustomer(int $customerId): ?array
+    {
+        if ($customerId <= 0) {
+            return null;
+        }
+
+        $statement = $this->pdo()->prepare('SELECT * FROM pelanggan WHERE id_pelanggan = :id LIMIT 1');
+        $statement->execute(['id' => $customerId]);
+        $customer = $statement->fetch();
+
+        return is_array($customer) ? $customer : null;
     }
 
     private function generateNota(): string
@@ -1260,22 +1825,30 @@ class LaundryRepository extends Model
 
     private function formatDateTimeParts(string $date, bool $withTime): string
     {
-        $months = [
-            1 => 'Januari',
-            2 => 'Februari',
-            3 => 'Maret',
-            4 => 'April',
-            5 => 'Mei',
-            6 => 'Juni',
-            7 => 'Juli',
-            8 => 'Agustus',
-            9 => 'September',
-            10 => 'Oktober',
-            11 => 'November',
-            12 => 'Desember',
-        ];
         $dt = new DateTimeImmutable($date, new DateTimeZone('Asia/Makassar'));
-        $value = $dt->format('j') . ' ' . $months[(int) $dt->format('n')] . ' ' . $dt->format('Y');
+        $format = $this->settings()['date_format'] ?? self::DEFAULT_SETTINGS['date_format'];
+
+        if ($format === 'DD/MM/YYYY') {
+            $value = $dt->format('d/m/Y');
+        } elseif ($format === 'YYYY-MM-DD') {
+            $value = $dt->format('Y-m-d');
+        } else {
+            $months = [
+                1 => 'Januari',
+                2 => 'Februari',
+                3 => 'Maret',
+                4 => 'April',
+                5 => 'Mei',
+                6 => 'Juni',
+                7 => 'Juli',
+                8 => 'Agustus',
+                9 => 'September',
+                10 => 'Oktober',
+                11 => 'November',
+                12 => 'Desember',
+            ];
+            $value = $dt->format('j') . ' ' . $months[(int) $dt->format('n')] . ' ' . $dt->format('Y');
+        }
 
         return $withTime ? $value . ', ' . $dt->format('H:i') : $value;
     }

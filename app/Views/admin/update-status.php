@@ -241,6 +241,21 @@ if ($serviceOptions === []) {
     ], ['Cuci Kering', 'Cuci Lipat', 'Cuci Setrika Lipat', 'Setrika Saja', 'Pengering & Lipat', 'Baju Bayi', 'Satuan', 'Express', 'Treatment']);
 }
 
+$statusOptions = $statusOptions ?? array_column($statusSteps, 'label');
+$filters = array_merge([
+    'search' => '',
+    'status' => '',
+    'service' => '',
+    'date_from' => '',
+    'date_to' => '',
+], is_array($filters ?? null) ? $filters : []);
+$filterSearchSafe = htmlspecialchars((string) $filters['search'], ENT_QUOTES, 'UTF-8');
+$filterStatus = (string) $filters['status'];
+$filterService = (string) $filters['service'];
+$filterDateFromSafe = htmlspecialchars((string) $filters['date_from'], ENT_QUOTES, 'UTF-8');
+$filterDateToSafe = htmlspecialchars((string) $filters['date_to'], ENT_QUOTES, 'UTF-8');
+$totalRows = $totalRows ?? count($orders);
+
 $selectedOrder = $orders[2] ?? $orders[0] ?? [
     'key' => '',
     'nota' => '-',
@@ -292,7 +307,7 @@ ob_start();
             <section class="laundry-heading">
                 <div>
                     <h1>Update Status</h1>
-                    <p><strong>Perbarui tahapan proses cucian dan simpan riwayat perubahan status.</strong></p>
+                    <p>Perbarui tahapan proses cucian dan simpan riwayat perubahan status.</p>
                     <p>Perubahan status dilakukan di halaman ini agar riwayat proses cucian tercatat dengan jelas.</p>
                 </div>
             </section>
@@ -317,34 +332,46 @@ ob_start();
                 <?php endforeach; ?>
             </section>
 
-            <form class="status-filter-bar" action="#" method="get">
+            <form class="status-filter-bar" action="<?= $safeBaseUrl ?>/admin/update-status" method="get">
                 <label class="laundry-search-field" for="statusSearch">
                     <span aria-hidden="true">&#128269;</span>
-                    <input id="statusSearch" type="search" placeholder="Cari no nota atau nama pelanggan..." autocomplete="off">
+                    <input id="statusSearch" name="q" type="search" placeholder="Cari no nota atau nama pelanggan..." value="<?= $filterSearchSafe ?>" autocomplete="off">
                 </label>
-                <select aria-label="Filter status">
-                    <option>Semua Status</option>
-                    <?php foreach ($statusSteps as $status): ?>
-                        <option><?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?></option>
+                <select name="status" aria-label="Filter status">
+                    <option value="">Semua Status</option>
+                    <?php foreach ($statusOptions as $statusOption): ?>
+                        <option value="<?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>" <?= $filterStatus === $statusOption ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
                 <label class="service-select-shell" aria-label="Filter layanan">
                     <span class="service-select-icon" aria-hidden="true">&#9672;</span>
-                    <select class="service-type-select" aria-label="Filter layanan" data-service-type-select>
+                    <select class="service-type-select" name="service" aria-label="Filter layanan" data-service-type-select>
                         <option value="">Semua Layanan</option>
                         <?php foreach ($serviceOptions as $option): ?>
-                            <option value="<?= htmlspecialchars((string) ($option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                                <?= htmlspecialchars((string) ($option['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                            <?php $serviceName = (string) ($option['name'] ?? ''); ?>
+                            <option value="<?= htmlspecialchars($serviceName, ENT_QUOTES, 'UTF-8') ?>" <?= $filterService === $serviceName ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($serviceName, ENT_QUOTES, 'UTF-8') ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                     <span class="service-select-chevron" aria-hidden="true">&#8964;</span>
                 </label>
-                <button class="date-filter" type="button">
+                <div class="date-filter date-filter-range" aria-label="Filter tanggal masuk">
                     <span aria-hidden="true">&#128197;</span>
-                    Bulan Ini (1 - 31 Mei 2026)
-                    <span aria-hidden="true">&#8964;</span>
+                    <input id="statusDateFrom" name="date_from" type="date" value="<?= $filterDateFromSafe ?>" aria-label="Tanggal mulai">
+                    <span class="date-filter-separator" aria-hidden="true">-</span>
+                    <input id="statusDateTo" name="date_to" type="date" value="<?= $filterDateToSafe ?>" aria-label="Tanggal akhir">
+                </div>
+                <button class="filter-primary" type="submit">
+                    <span aria-hidden="true">&#9661;</span>
+                    Filter
                 </button>
+                <a class="filter-reset" href="<?= $safeBaseUrl ?>/admin/update-status">
+                    <span aria-hidden="true">&#8635;</span>
+                    Reset
+                </a>
             </form>
 
             <section class="status-workspace">
@@ -364,38 +391,44 @@ ob_start();
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($orders as $order): ?>
-                                    <?php $statusFormId = 'statusForm' . preg_replace('/[^A-Za-z0-9_-]/', '', $order['key']); ?>
-                                    <tr class="status-order-row <?= $order['key'] === $selectedOrder['key'] ? 'is-active' : '' ?>" data-status-row="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <td><?= htmlspecialchars($order['nota'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td>
-                                            <button class="status-customer-button" type="button" data-order-key="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $order['key'] === $selectedOrder['key'] ? 'true' : 'false' ?>">
-                                                <?= htmlspecialchars($order['customer'], ENT_QUOTES, 'UTF-8') ?>
-                                            </button>
-                                        </td>
-                                        <td><?= htmlspecialchars($order['service'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td><span class="status-pill <?= htmlspecialchars($order['tone'], ENT_QUOTES, 'UTF-8') ?>" data-current-status="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($order['currentStatus'], ENT_QUOTES, 'UTF-8') ?></span></td>
-                                        <td>
-                                            <select name="status" form="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" data-status-select="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" aria-label="Pilih status baru untuk <?= htmlspecialchars($order['customer'], ENT_QUOTES, 'UTF-8') ?>">
-                                                <?php foreach ($statusSteps as $status): ?>
-                                                    <option value="<?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?>" <?= $status['label'] === $order['currentStatus'] ? 'selected' : '' ?>>
-                                                        <?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <input class="status-note-input" type="text" name="note" form="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" data-status-note="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" placeholder="Masukkan catatan...">
-                                        </td>
-                                        <td>
-                                            <form id="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" action="<?= $safeBaseUrl ?>/admin/update-status" method="post">
-                                                <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
-                                                <input type="hidden" name="no_nota" value="<?= htmlspecialchars($order['nota'], ENT_QUOTES, 'UTF-8') ?>">
-                                                <button class="status-save-button" type="submit" data-save-status="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>">Simpan</button>
-                                            </form>
-                                        </td>
+                                <?php if ($orders === []): ?>
+                                    <tr>
+                                        <td class="laundry-empty-row" colspan="7">Data cucian tidak ditemukan. Coba ubah atau reset filter.</td>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php else: ?>
+                                    <?php foreach ($orders as $order): ?>
+                                        <?php $statusFormId = 'statusForm' . preg_replace('/[^A-Za-z0-9_-]/', '', $order['key']); ?>
+                                        <tr class="status-order-row <?= $order['key'] === $selectedOrder['key'] ? 'is-active' : '' ?>" data-status-row="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>">
+                                            <td><?= htmlspecialchars($order['nota'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td>
+                                                <button class="status-customer-button" type="button" data-order-key="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" aria-pressed="<?= $order['key'] === $selectedOrder['key'] ? 'true' : 'false' ?>">
+                                                    <?= htmlspecialchars($order['customer'], ENT_QUOTES, 'UTF-8') ?>
+                                                </button>
+                                            </td>
+                                            <td><?= htmlspecialchars($order['service'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><span class="status-pill <?= htmlspecialchars($order['tone'], ENT_QUOTES, 'UTF-8') ?>" data-current-status="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($order['currentStatus'], ENT_QUOTES, 'UTF-8') ?></span></td>
+                                            <td>
+                                                <select name="status" form="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" data-status-select="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" aria-label="Pilih status baru untuk <?= htmlspecialchars($order['customer'], ENT_QUOTES, 'UTF-8') ?>">
+                                                    <?php foreach ($statusSteps as $status): ?>
+                                                        <option value="<?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?>" <?= $status['label'] === $order['currentStatus'] ? 'selected' : '' ?>>
+                                                            <?= htmlspecialchars($status['label'], ENT_QUOTES, 'UTF-8') ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <input class="status-note-input" type="text" name="note" form="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" data-status-note="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>" placeholder="Masukkan catatan...">
+                                            </td>
+                                            <td>
+                                                <form id="<?= htmlspecialchars($statusFormId, ENT_QUOTES, 'UTF-8') ?>" action="<?= $safeBaseUrl ?>/admin/update-status" method="post">
+                                                    <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+                                                    <input type="hidden" name="no_nota" value="<?= htmlspecialchars($order['nota'], ENT_QUOTES, 'UTF-8') ?>">
+                                                    <button class="status-save-button" type="submit" data-save-status="<?= htmlspecialchars($order['key'], ENT_QUOTES, 'UTF-8') ?>">Simpan</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>

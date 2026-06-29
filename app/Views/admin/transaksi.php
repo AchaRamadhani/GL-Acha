@@ -1,9 +1,72 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
+$settings = $settings ?? [];
+$setting = static fn (string $key, string $fallback = ''): string => (string) ($settings[$key] ?? $fallback);
 $admin = $admin ?? [];
 $adminName = (string) ($admin['name'] ?? 'Admin Laundry');
 $adminRole = (string) ($admin['role'] ?? 'Administrator');
 $whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/logo-wa.jpg?v=1" alt="">';
+
+if (!function_exists('transactionActionIcon')) {
+    function transactionActionIcon(string $name): string
+    {
+        $attributes = 'class="transaction-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"';
+
+        return match ($name) {
+            'view' => '<svg ' . $attributes . '><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg>',
+            default => '',
+        };
+    }
+}
+
+$normalizeWhatsappNumber = static function (string $value): string {
+    $phone = preg_replace('/\D+/', '', $value) ?: '';
+
+    if ($phone === '') {
+        return '';
+    }
+
+    if (substr($phone, 0, 1) === '0') {
+        return '62' . substr($phone, 1);
+    }
+
+    if (substr($phone, 0, 1) === '8') {
+        return '62' . $phone;
+    }
+
+    return $phone;
+};
+
+$transactionMessage = static function (array $row) use ($settings): string {
+    $laundryName = trim((string) ($settings['laundry_name'] ?? 'Ghava Laundry')) ?: 'Ghava Laundry';
+    $notes = trim((string) ($row['notes'] ?? ''));
+    $lines = [
+        'Halo ' . ((string) ($row['name'] ?? '') ?: 'Pelanggan') . ', berikut nota ' . $laundryName . '.',
+        'No. Nota: ' . ((string) ($row['nota'] ?? '') ?: '-'),
+        'Layanan: ' . ((string) ($row['service'] ?? '') ?: '-'),
+        'Berat/Qty: ' . ((string) ($row['weight'] ?? '') ?: '-'),
+        'Tanggal Masuk: ' . ((string) ($row['in_long'] ?? $row['in'] ?? '') ?: '-'),
+        'Estimasi Selesai: ' . ((string) ($row['eta_long'] ?? $row['eta'] ?? '') ?: '-'),
+        'Status: ' . ((string) ($row['status'] ?? '') ?: '-'),
+        'Total: ' . ((string) ($row['total'] ?? '') ?: '-'),
+    ];
+
+    if ($notes !== '') {
+        $lines[] = 'Catatan: ' . $notes;
+    }
+
+    return implode("\n", $lines);
+};
+
+$transactionWhatsappUrl = static function (array $row) use ($normalizeWhatsappNumber, $transactionMessage): string {
+    $phone = $normalizeWhatsappNumber((string) ($row['phone'] ?? ''));
+
+    if ($phone === '') {
+        return '';
+    }
+
+    return 'https://wa.me/' . $phone . '?text=' . rawurlencode($transactionMessage($row));
+};
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -93,6 +156,60 @@ $totalRows = $totalRows ?? count($transactions);
 $averageTransaction = (int) ($transactionSummary['total'] ?? 0) > 0
     ? ((float) ($transactionSummary['revenue'] ?? 0) / (int) $transactionSummary['total'])
     : 0;
+$pagination = array_merge([
+    'page' => 1,
+    'perPage' => 10,
+    'perPageOptions' => [10],
+    'totalPages' => 1,
+    'from' => count($transactions) > 0 ? 1 : 0,
+    'to' => count($transactions),
+], is_array($pagination ?? null) ? $pagination : []);
+$currentPage = max(1, (int) $pagination['page']);
+$currentPerPage = max(1, (int) $pagination['perPage']);
+$totalPages = max(1, (int) $pagination['totalPages']);
+$paginationFrom = max(0, (int) $pagination['from']);
+$paginationTo = max(0, (int) $pagination['to']);
+$paginationTokens = [];
+$lastPaginationPage = 0;
+
+for ($pageNumber = 1; $pageNumber <= $totalPages; $pageNumber++) {
+    if ($pageNumber === 1 || $pageNumber === $totalPages || abs($pageNumber - $currentPage) <= 2) {
+        if ($lastPaginationPage > 0 && $pageNumber - $lastPaginationPage > 1) {
+            $paginationTokens[] = '...';
+        }
+
+        $paginationTokens[] = $pageNumber;
+        $lastPaginationPage = $pageNumber;
+    }
+}
+
+$paginationUrl = static function (int $page) use ($safeBaseUrl, $currentPerPage): string {
+    $query = $_GET;
+    $query['page'] = max(1, $page);
+    $query['per_page'] = $currentPerPage;
+    $queryString = http_build_query($query);
+
+    return $safeBaseUrl . '/admin/transaksi' . ($queryString !== '' ? '?' . htmlspecialchars($queryString, ENT_QUOTES, 'UTF-8') : '');
+};
+$transactionReceiptData = array_map(static function (array $row) use ($transactionWhatsappUrl): array {
+    return [
+        'nota' => (string) ($row['nota'] ?? ''),
+        'name' => (string) ($row['name'] ?? ''),
+        'phone' => (string) ($row['phone'] ?? ''),
+        'service' => (string) ($row['service'] ?? ''),
+        'weight' => (string) ($row['weight'] ?? ''),
+        'in' => (string) ($row['in_long'] ?? $row['in'] ?? ''),
+        'eta' => (string) ($row['eta_long'] ?? $row['eta'] ?? ''),
+        'status' => (string) ($row['status'] ?? ''),
+        'tone' => (string) ($row['tone'] ?? 'blue'),
+        'total' => (string) ($row['total'] ?? ''),
+        'notes' => (string) ($row['notes'] ?? ''),
+        'whatsappUrl' => $transactionWhatsappUrl($row),
+    ];
+}, $transactions);
+$transactionJson = json_encode([
+    'transactions' => $transactionReceiptData,
+], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 
 ob_start();
 ?>
@@ -223,6 +340,7 @@ ob_start();
                                     </tr>
                                 <?php endif; ?>
                                 <?php foreach ($transactions as $row): ?>
+                                    <?php $whatsappUrl = $transactionWhatsappUrl($row); ?>
                                     <tr>
                                         <td><?= $row['no'] ?></td>
                                         <td><?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -235,8 +353,12 @@ ob_start();
                                         <td><span class="status-pill <?= htmlspecialchars($row['tone'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($row['status'], ENT_QUOTES, 'UTF-8') ?></span></td>
                                         <td>
                                             <div class="transaction-actions" aria-label="Aksi transaksi">
-                                                <button class="view" type="button" aria-label="Lihat nota">&#128065;</button>
-                                                <button class="wa" type="button" aria-label="Kirim nota WhatsApp"><?= $whatsappLogo ?></button>
+                                                <button class="view" type="button" aria-label="Lihat nota <?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?>" data-transaction-action="view" data-transaction-nota="<?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?>"><?= transactionActionIcon('view') ?></button>
+                                                <?php if ($whatsappUrl !== ''): ?>
+                                                    <a class="wa" href="<?= htmlspecialchars($whatsappUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener" aria-label="Kirim nota WhatsApp <?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?>"><?= $whatsappLogo ?></a>
+                                                <?php else: ?>
+                                                    <button class="wa disabled" type="button" aria-label="Nomor WhatsApp belum tersedia" disabled><?= $whatsappLogo ?></button>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>
@@ -246,15 +368,29 @@ ob_start();
                     </div>
 
                     <div class="laundry-pagination transaction-pagination">
-                        <p>Menampilkan <?= count($transactions) > 0 ? '1' : '0' ?> - <?= count($transactions) ?> dari <?= (int) $totalRows ?> transaksi</p>
+                        <p>Menampilkan <?= (int) $paginationFrom ?> - <?= (int) $paginationTo ?> dari <?= (int) $totalRows ?> transaksi</p>
                         <div class="page-buttons">
-                            <button type="button" aria-label="Sebelumnya">&#8592;</button>
-                            <button class="active" type="button">1</button>
-                            <button type="button">2</button>
-                            <button type="button">3</button>
-                            <span>...</span>
-                            <button type="button">14</button>
-                            <button type="button" aria-label="Berikutnya">&#8594;</button>
+                            <?php if ($currentPage > 1): ?>
+                                <a class="pagination-page" href="<?= $paginationUrl($currentPage - 1) ?>" aria-label="Sebelumnya">&#8592;</a>
+                            <?php else: ?>
+                                <span class="pagination-page disabled" aria-hidden="true">&#8592;</span>
+                            <?php endif; ?>
+
+                            <?php foreach ($paginationTokens as $paginationToken): ?>
+                                <?php if ($paginationToken === '...'): ?>
+                                    <span class="pagination-ellipsis" aria-hidden="true">...</span>
+                                <?php elseif ((int) $paginationToken === $currentPage): ?>
+                                    <span class="pagination-page active" aria-current="page"><?= (int) $paginationToken ?></span>
+                                <?php else: ?>
+                                    <a class="pagination-page" href="<?= $paginationUrl((int) $paginationToken) ?>"><?= (int) $paginationToken ?></a>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+
+                            <?php if ($currentPage < $totalPages): ?>
+                                <a class="pagination-page" href="<?= $paginationUrl($currentPage + 1) ?>" aria-label="Berikutnya">&#8594;</a>
+                            <?php else: ?>
+                                <span class="pagination-page disabled" aria-hidden="true">&#8594;</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -307,6 +443,84 @@ ob_start();
                 </aside>
             </section>
         </main>
+
+        <script id="transactionData" type="application/json"><?= $transactionJson ?: '{"transactions":[]}' ?></script>
+
+        <div class="laundry-modal-backdrop transaction-receipt-modal" data-transaction-receipt-modal hidden>
+            <section class="laundry-dialog transaction-receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="transactionReceiptTitle">
+                <button class="laundry-modal-close transaction-print-hidden" type="button" aria-label="Tutup nota transaksi" data-transaction-receipt-close>&times;</button>
+
+                <header class="laundry-modal-header transaction-print-hidden">
+                    <h2 id="transactionReceiptTitle">Detail Nota</h2>
+                    <p data-transaction-receipt-subtitle>Pilih transaksi untuk melihat rincian nota.</p>
+                </header>
+
+                <div class="transaction-receipt-body">
+                    <div class="transaction-receipt-brand">
+                        <span><img src="<?= $safeBaseUrl ?>/assets/img/ghava-logo.svg" alt=""></span>
+                        <div>
+                            <strong><?= htmlspecialchars($setting('laundry_name', 'Ghava Laundry'), ENT_QUOTES, 'UTF-8') ?></strong>
+                            <small data-transaction-receipt-nota>-</small>
+                        </div>
+                    </div>
+
+                    <dl class="transaction-receipt-grid">
+                        <div>
+                            <dt>Pelanggan</dt>
+                            <dd data-transaction-receipt-customer>-</dd>
+                        </div>
+                        <div>
+                            <dt>No. Telepon</dt>
+                            <dd data-transaction-receipt-phone>-</dd>
+                        </div>
+                        <div>
+                            <dt>Layanan</dt>
+                            <dd data-transaction-receipt-service>-</dd>
+                        </div>
+                        <div>
+                            <dt>Berat/Qty</dt>
+                            <dd data-transaction-receipt-weight>-</dd>
+                        </div>
+                        <div>
+                            <dt>Tgl Masuk</dt>
+                            <dd data-transaction-receipt-in>-</dd>
+                        </div>
+                        <div>
+                            <dt>Estimasi Selesai</dt>
+                            <dd data-transaction-receipt-eta>-</dd>
+                        </div>
+                        <div>
+                            <dt>Status</dt>
+                            <dd><span class="status-pill blue" data-transaction-receipt-status>-</span></dd>
+                        </div>
+                    </dl>
+
+                    <p class="transaction-receipt-note" data-transaction-receipt-notes-row hidden>
+                        <span>Catatan</span>
+                        <strong data-transaction-receipt-notes></strong>
+                    </p>
+
+                    <div class="transaction-receipt-total">
+                        <span>Total Harga</span>
+                        <strong data-transaction-receipt-total>-</strong>
+                    </div>
+                </div>
+
+                <div class="laundry-modal-actions transaction-receipt-actions transaction-print-hidden">
+                    <a class="transaction-receipt-wa" href="#" target="_blank" rel="noopener" data-transaction-receipt-wa>
+                        <?= $whatsappLogo ?>
+                        Kirim WhatsApp
+                    </a>
+                    <div>
+                        <button class="laundry-cancel-button" type="button" data-transaction-receipt-close>Tutup</button>
+                        <button class="laundry-save-button" type="button" data-transaction-receipt-print>
+                            <span aria-hidden="true">&#128424;</span>
+                            Cetak Nota
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
     </div>
 </div>
 <?php

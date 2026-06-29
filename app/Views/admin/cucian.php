@@ -1,10 +1,27 @@
 <?php
 $safeBaseUrl = htmlspecialchars($baseUrl ?? '', ENT_QUOTES, 'UTF-8');
 $csrfTokenSafe = htmlspecialchars($csrfToken ?? '', ENT_QUOTES, 'UTF-8');
+$settings = $settings ?? [];
+$setting = static fn (string $key, string $fallback = ''): string => (string) ($settings[$key] ?? $fallback);
 $admin = $admin ?? [];
 $adminName = (string) ($admin['name'] ?? 'Admin Laundry');
 $adminRole = (string) ($admin['role'] ?? 'Administrator');
 $whatsappLogo = '<img src="' . $safeBaseUrl . '/assets/img/logo-wa.jpg?v=1" alt="">';
+$whatsappMessageTemplate = $setting('message', 'Halo {nama_pelanggan}, cucian Anda dengan nomor pesanan {kode_pesanan} sudah selesai. Silakan datang kapan saja. Terima kasih telah mempercayakan cucian Anda kepada Ghava Laundry!');
+
+if (!function_exists('laundryActionIcon')) {
+    function laundryActionIcon(string $name): string
+    {
+        $attributes = 'class="laundry-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"';
+
+        return match ($name) {
+            'view' => '<svg ' . $attributes . '><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg>',
+            'edit' => '<svg ' . $attributes . '><path d="m14.4 5.4 4.2 4.2"/><path d="M4.6 19.4 6 14l9.8-9.8a2.1 2.1 0 0 1 3 3L9 17l-5.4 1.4Z"/><path d="M13.6 6.4 17.6 10.4"/></svg>',
+            'delete' => '<svg ' . $attributes . '><path d="M4.5 7h15"/><path d="M9.5 7V5.4c0-.8.6-1.4 1.4-1.4h2.2c.8 0 1.4.6 1.4 1.4V7"/><path d="M17.5 7 16.7 19a1.6 1.6 0 0 1-1.6 1.5H8.9A1.6 1.6 0 0 1 7.3 19L6.5 7"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>',
+            default => '',
+        };
+    }
+}
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -56,6 +73,28 @@ $statusColors = [
     'Diambil' => '#3dbb4f',
 ];
 
+$statusTotal = array_sum(array_map(static fn (array $status): int => max(0, (int) ($status['value'] ?? 0)), $statusSummary));
+$statusSegments = [];
+$statusOffset = 0.0;
+
+foreach ($statusSummary as $status) {
+    $statusLabel = (string) ($status['label'] ?? '');
+    $statusValue = max(0, (int) ($status['value'] ?? 0));
+
+    if ($statusTotal <= 0 || $statusValue <= 0) {
+        continue;
+    }
+
+    $statusPercent = ($statusValue / $statusTotal) * 100;
+    $statusEnd = $statusOffset + $statusPercent;
+    $statusSegments[] = ($statusColors[$statusLabel] ?? '#2f80ed') . ' '
+        . number_format($statusOffset, 4, '.', '') . '% '
+        . number_format($statusEnd, 4, '.', '') . '%';
+    $statusOffset = $statusEnd;
+}
+
+$statusDonutGradient = $statusSegments === [] ? '#eef4fb' : 'conic-gradient(' . implode(', ', $statusSegments) . ')';
+
 $activities = $activities ?? [
     ['icon' => '+', 'tone' => 'blue', 'title' => 'Data cucian baru ditambahkan', 'detail' => 'INV-250521-006 - Lina Wati', 'time' => '09:45'],
     ['icon' => '&#9998;', 'tone' => 'blue', 'title' => 'Data cucian diperbarui', 'detail' => 'INV-250521-002 - Siti Aisyah', 'time' => '09:20'],
@@ -100,6 +139,64 @@ $filterService = (string) $filters['service'];
 $filterDateFromSafe = htmlspecialchars((string) $filters['date_from'], ENT_QUOTES, 'UTF-8');
 $filterDateToSafe = htmlspecialchars((string) $filters['date_to'], ENT_QUOTES, 'UTF-8');
 $totalRows = $totalRows ?? count($laundryRows);
+$pagination = array_merge([
+    'page' => 1,
+    'perPage' => 10,
+    'perPageOptions' => [10],
+    'totalPages' => 1,
+    'from' => count($laundryRows) > 0 ? 1 : 0,
+    'to' => count($laundryRows),
+], is_array($pagination ?? null) ? $pagination : []);
+$currentPage = max(1, (int) $pagination['page']);
+$currentPerPage = max(1, (int) $pagination['perPage']);
+$totalPages = max(1, (int) $pagination['totalPages']);
+$paginationFrom = max(0, (int) $pagination['from']);
+$paginationTo = max(0, (int) $pagination['to']);
+$perPageOptions = array_values(array_filter(array_map('intval', (array) $pagination['perPageOptions'])));
+$perPageOptions = $perPageOptions === [] ? [$currentPerPage] : $perPageOptions;
+$paginationTokens = [];
+$lastPaginationPage = 0;
+
+for ($pageNumber = 1; $pageNumber <= $totalPages; $pageNumber++) {
+    if ($pageNumber === 1 || $pageNumber === $totalPages || abs($pageNumber - $currentPage) <= 2) {
+        if ($lastPaginationPage > 0 && $pageNumber - $lastPaginationPage > 1) {
+            $paginationTokens[] = '...';
+        }
+
+        $paginationTokens[] = $pageNumber;
+        $lastPaginationPage = $pageNumber;
+    }
+}
+
+$paginationUrl = static function (int $page, ?int $perPage = null) use ($safeBaseUrl, $currentPerPage): string {
+    $query = $_GET;
+    $query['page'] = max(1, $page);
+    $query['per_page'] = $perPage ?? $currentPerPage;
+    $queryString = http_build_query($query);
+
+    return $safeBaseUrl . '/admin/cucian' . ($queryString !== '' ? '?' . htmlspecialchars($queryString, ENT_QUOTES, 'UTF-8') : '');
+};
+$laundryCrudData = array_map(static fn (array $row): array => [
+    'nota' => (string) ($row['nota'] ?? ''),
+    'name' => (string) ($row['name'] ?? ''),
+    'phone' => (string) ($row['phone'] ?? ''),
+    'service' => (string) ($row['service'] ?? ''),
+    'serviceId' => (string) ($row['service_id'] ?? ''),
+    'weight' => (float) ($row['weight_value'] ?? 0),
+    'unit' => (string) ($row['unit'] ?? 'kg'),
+    'dateIn' => (string) ($row['date_in_value'] ?? ''),
+    'eta' => (string) ($row['eta_value'] ?? ''),
+    'dateInText' => (string) ($row['in'] ?? ''),
+    'etaText' => (string) ($row['eta'] ?? ''),
+    'status' => (string) ($row['status'] ?? ''),
+    'total' => (float) ($row['total_value'] ?? 0),
+    'totalText' => (string) ($row['total'] ?? ''),
+    'notes' => (string) ($row['notes'] ?? ''),
+], $laundryRows);
+$laundryCrudJson = json_encode([
+    'orders' => $laundryCrudData,
+    'whatsappTemplate' => $whatsappMessageTemplate,
+], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 
 ob_start();
 ?>
@@ -144,7 +241,7 @@ ob_start();
                     <h1>Data Cucian</h1>
                     <p>Kelola seluruh data cucian pelanggan: tambah, lihat, ubah, dan hapus data cucian.</p>
                 </div>
-                <button class="add-laundry-button" type="button" data-laundry-modal-open>
+                <button class="add-laundry-button" type="button" data-laundry-modal-open data-laundry-create>
                     <span aria-hidden="true">+</span>
                     Tambah Data Cucian
                 </button>
@@ -256,10 +353,10 @@ ob_start();
                                         <td><?= htmlspecialchars($row['total'], ENT_QUOTES, 'UTF-8') ?></td>
                                         <td>
                                             <div class="laundry-actions" aria-label="Aksi data cucian">
-                                                <button class="view" type="button" aria-label="Lihat detail">&#128065;</button>
-                                                <button class="edit" type="button" aria-label="Ubah data">&#9998;</button>
-                                                <button class="delete" type="button" aria-label="Hapus data">&#128465;</button>
-                                                <button class="wa" type="button" aria-label="Hubungi WhatsApp"><?= $whatsappLogo ?></button>
+                                                <button class="view" type="button" aria-label="Lihat detail" data-laundry-action="view" data-laundry-nota="<?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?>"><?= laundryActionIcon('view') ?></button>
+                                                <button class="edit" type="button" aria-label="Ubah data" data-laundry-action="edit" data-laundry-nota="<?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?>"><?= laundryActionIcon('edit') ?></button>
+                                                <button class="delete" type="button" aria-label="Hapus data" data-laundry-action="delete" data-laundry-nota="<?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?>"><?= laundryActionIcon('delete') ?></button>
+                                                <button class="wa" type="button" aria-label="Hubungi WhatsApp" data-laundry-action="whatsapp" data-laundry-nota="<?= htmlspecialchars($row['nota'], ENT_QUOTES, 'UTF-8') ?>"><?= $whatsappLogo ?></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -269,21 +366,45 @@ ob_start();
                     </div>
 
                     <div class="laundry-pagination">
-                        <p>Menampilkan <?= count($laundryRows) > 0 ? '1' : '0' ?> - <?= count($laundryRows) ?> dari <?= (int) $totalRows ?> data</p>
+                        <p>Menampilkan <?= (int) $paginationFrom ?> - <?= (int) $paginationTo ?> dari <?= (int) $totalRows ?> data</p>
                         <div class="page-buttons">
-                            <button type="button" aria-label="Sebelumnya">&#8249;</button>
-                            <button class="active" type="button">1</button>
-                            <button type="button">2</button>
-                            <button type="button">3</button>
-                            <button type="button">4</button>
-                            <button type="button">5</button>
-                            <span>...</span>
-                            <button type="button">19</button>
-                            <button type="button" aria-label="Berikutnya">&#8250;</button>
+                            <?php if ($currentPage > 1): ?>
+                                <a class="pagination-page" href="<?= $paginationUrl($currentPage - 1) ?>" aria-label="Sebelumnya">&#8249;</a>
+                            <?php else: ?>
+                                <span class="pagination-page disabled" aria-hidden="true">&#8249;</span>
+                            <?php endif; ?>
+
+                            <?php foreach ($paginationTokens as $paginationToken): ?>
+                                <?php if ($paginationToken === '...'): ?>
+                                    <span class="pagination-ellipsis" aria-hidden="true">...</span>
+                                <?php elseif ((int) $paginationToken === $currentPage): ?>
+                                    <span class="pagination-page active" aria-current="page"><?= (int) $paginationToken ?></span>
+                                <?php else: ?>
+                                    <a class="pagination-page" href="<?= $paginationUrl((int) $paginationToken) ?>"><?= (int) $paginationToken ?></a>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+
+                            <?php if ($currentPage < $totalPages): ?>
+                                <a class="pagination-page" href="<?= $paginationUrl($currentPage + 1) ?>" aria-label="Berikutnya">&#8250;</a>
+                            <?php else: ?>
+                                <span class="pagination-page disabled" aria-hidden="true">&#8250;</span>
+                            <?php endif; ?>
                         </div>
-                        <select aria-label="Jumlah data per halaman">
-                            <option>10 / halaman</option>
-                        </select>
+                        <form class="pagination-size-form" action="<?= $safeBaseUrl ?>/admin/cucian" method="get">
+                            <input type="hidden" name="q" value="<?= $filterSearchSafe ?>">
+                            <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus, ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="service" value="<?= htmlspecialchars($filterService, ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="date_from" value="<?= $filterDateFromSafe ?>">
+                            <input type="hidden" name="date_to" value="<?= $filterDateToSafe ?>">
+                            <input type="hidden" name="page" value="1">
+                            <select name="per_page" aria-label="Jumlah data per halaman" onchange="this.form.submit()">
+                                <?php foreach ($perPageOptions as $perPageOption): ?>
+                                    <option value="<?= (int) $perPageOption ?>" <?= (int) $perPageOption === $currentPerPage ? 'selected' : '' ?>>
+                                        <?= (int) $perPageOption ?> / halaman
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </form>
                     </div>
                 </div>
 
@@ -291,8 +412,8 @@ ob_start();
                     <article class="laundry-widget">
                         <h2>Ringkasan Status</h2>
                         <div class="laundry-status-wrap">
-                            <div class="laundry-status-donut" aria-label="Total <?= (int) $totalRows ?> data cucian">
-                                <div><strong><?= (int) $totalRows ?></strong><span>Total</span></div>
+                            <div class="laundry-status-donut" style="--laundry-status-donut: <?= htmlspecialchars($statusDonutGradient, ENT_QUOTES, 'UTF-8') ?>;" aria-label="Total <?= (int) $statusTotal ?> data cucian">
+                                <div><strong><?= (int) $statusTotal ?></strong><span>Total</span></div>
                             </div>
                             <div class="laundry-status-list">
                                 <?php foreach ($statusSummary as $status): ?>
@@ -300,7 +421,12 @@ ob_start();
                                     $statusLabel = (string) ($status['label'] ?? '');
                                     $statusColor = $statusColors[$statusLabel] ?? '#2f80ed';
                                     ?>
-                                    <p style="--status-color: <?= htmlspecialchars($statusColor, ENT_QUOTES, 'UTF-8') ?>;"><span class="<?= htmlspecialchars($status['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?><strong><?= $status['value'] ?></strong><small>(<?= htmlspecialchars($status['percent'], ENT_QUOTES, 'UTF-8') ?>)</small></p>
+                                    <p style="--status-color: <?= htmlspecialchars($statusColor, ENT_QUOTES, 'UTF-8') ?>;">
+                                        <span class="laundry-status-dot <?= htmlspecialchars($status['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span>
+                                        <span class="laundry-status-label"><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <strong><?= (int) ($status['value'] ?? 0) ?></strong>
+                                        <small>(<?= htmlspecialchars($status['percent'], ENT_QUOTES, 'UTF-8') ?>)</small>
+                                    </p>
                                 <?php endforeach; ?>
                             </div>
                         </div>
@@ -322,20 +448,28 @@ ob_start();
             </section>
         </main>
 
-        <div class="laundry-modal-backdrop" data-laundry-modal hidden>
+        <script id="laundryCrudData" type="application/json"><?= $laundryCrudJson ?: '{"orders":[],"whatsappTemplate":""}' ?></script>
+
+        <form action="<?= $safeBaseUrl ?>/admin/cucian/delete" method="post" data-laundry-delete-form hidden>
+            <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+            <input type="hidden" name="nota" value="">
+        </form>
+
+        <div class="laundry-modal-backdrop" data-laundry-modal="cucian" hidden>
             <section class="laundry-dialog" role="dialog" aria-modal="true" aria-labelledby="laundryModalTitle">
                 <button class="laundry-modal-close" type="button" aria-label="Tutup form tambah data cucian" data-laundry-modal-close>&times;</button>
 
-                <header class="laundry-modal-header">
+                <header class="laundry-modal-header" data-laundry-modal-header>
                     <h2 id="laundryModalTitle">Tambah Data Cucian</h2>
                     <p>Masukkan data cucian pelanggan dengan lengkap.</p>
                 </header>
 
-                <form class="laundry-modal-form" action="<?= $safeBaseUrl ?>/admin/cucian" method="post" data-laundry-form>
+                <form class="laundry-modal-form" action="<?= $safeBaseUrl ?>/admin/cucian" method="post" data-laundry-form data-laundry-crud-form data-create-action="<?= $safeBaseUrl ?>/admin/cucian" data-update-action="<?= $safeBaseUrl ?>/admin/cucian/update">
                     <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+                    <input type="hidden" name="nota" value="" data-laundry-nota-field>
                     <div class="laundry-modal-field">
                         <label for="laundryNota">No. Nota</label>
-                        <input id="laundryNota" type="text" value="Otomatis" readonly>
+                        <input id="laundryNota" type="text" value="Otomatis" readonly data-laundry-nota-display>
                         <small>Nomor nota akan digenerate otomatis</small>
                     </div>
 
@@ -395,11 +529,9 @@ ob_start();
                     <div class="laundry-modal-field">
                         <label for="laundryInitialStatus">Status Awal <span>*</span></label>
                         <select id="laundryInitialStatus" name="initial_status" required>
-                            <option>Antrean</option>
-                            <option>Diproses</option>
-                            <option>Dicuci</option>
-                            <option>Dikeringkan</option>
-                            <option>Disetrika</option>
+                            <?php foreach ($statusOptions as $statusOption): ?>
+                                <option value="<?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
                         </select>
                         <small>Status awal cucian saat pertama masuk</small>
                     </div>
@@ -426,9 +558,9 @@ ob_start();
                         </button>
                         <div>
                             <button class="laundry-cancel-button" type="button" data-laundry-modal-close>Batal</button>
-                            <button class="laundry-save-button" type="submit">
+                            <button class="laundry-save-button" type="submit" data-laundry-save-button>
                                 <span aria-hidden="true">&#128190;</span>
-                                Simpan Data
+                                <span data-laundry-submit-label>Simpan Data</span>
                             </button>
                         </div>
                     </div>

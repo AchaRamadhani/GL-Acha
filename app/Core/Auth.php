@@ -16,6 +16,8 @@ class Auth
             return;
         }
 
+        self::configureSessionStorage();
+
         if (!headers_sent()) {
             $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
 
@@ -218,6 +220,19 @@ class Auth
         $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 
         return $basePath === '' ? '/' : $basePath;
+    }
+
+    private static function configureSessionStorage(): void
+    {
+        $path = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
+
+        if (!is_dir($path)) {
+            @mkdir($path, 0775, true);
+        }
+
+        if (is_dir($path) && is_writable($path)) {
+            session_save_path($path);
+        }
     }
 
     private static function extendSessionCookie(): void

@@ -81,7 +81,7 @@ class HomeController extends Controller
         $revenueStats = $this->laundry()->revenueSummary($period['range']);
         $periodMeta = $period['short_label'];
 
-        $this->view('admin/dashboard', [
+        $this->adminView('admin/dashboard', [
             'title' => 'Dashboard Admin - Ghava Laundry',
             'admin' => Auth::user(),
             'dashboardPeriod' => $period,
@@ -95,6 +95,7 @@ class HomeController extends Controller
             'orders' => $this->laundry()->orderRows(5, $period['range']),
             'services' => $this->laundry()->serviceSummary($period['range']),
             'statusSummary' => $this->laundry()->statusSummary($period['range']),
+            'statusOptions' => $this->laundryStatusOptions(),
         ]);
     }
 
@@ -105,8 +106,10 @@ class HomeController extends Controller
         $packages = $this->laundry()->packages();
         $filters = $this->laundryFilters();
         $dateRange = $filters['range'];
+        $totalRows = $this->laundry()->countOrders($dateRange, $filters);
+        $pagination = $this->pagination($totalRows);
 
-        $this->view('admin/cucian', [
+        $this->adminView('admin/cucian', [
             'title' => 'Data Cucian - Ghava Laundry',
             'admin' => Auth::user(),
             'csrfToken' => Auth::csrfToken(),
@@ -118,14 +121,15 @@ class HomeController extends Controller
                 ['tone' => 'green', 'icon' => '&#10003;', 'label' => 'Selesai', 'value' => (string) $stats['completed'], 'meta' => 'Cucian'],
                 ['tone' => 'purple', 'icon' => '&#128717;', 'label' => 'Diambil', 'value' => $this->statusValue('Diambil'), 'meta' => 'Cucian'],
             ],
-            'laundryRows' => $this->laundry()->orderRows(10, $dateRange, $filters),
+            'laundryRows' => $this->laundry()->orderRows($pagination['perPage'], $dateRange, $filters, $pagination['offset']),
             'statusSummary' => $this->laundry()->statusSummary($dateRange, $filters),
             'activities' => $this->laundry()->activities(5, ['cucian', 'status', 'pengaturan', 'login', 'logout']),
             'packages' => $packages,
             'serviceOptions' => $this->serviceOptions($packages),
             'statusOptions' => $this->laundryStatusOptions(),
             'filters' => $filters,
-            'totalRows' => $this->laundry()->countOrders($dateRange, $filters),
+            'totalRows' => $totalRows,
+            'pagination' => $pagination,
         ]);
     }
 
@@ -148,6 +152,44 @@ class HomeController extends Controller
         Auth::redirect('/admin/cucian');
     }
 
+    public function adminUpdateCucian(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
+            Auth::flash('admin_error', 'Sesi form sudah kedaluwarsa. Silakan coba lagi.');
+            Auth::redirect('/admin/cucian');
+        }
+
+        try {
+            $nota = $this->laundry()->updateLaundry($_POST, Auth::currentAdminId() ?? 0);
+            Auth::flash('admin_success', 'Data cucian ' . $nota . ' berhasil diperbarui.');
+        } catch (Throwable $error) {
+            Auth::flash('admin_error', $error->getMessage());
+        }
+
+        Auth::redirect('/admin/cucian');
+    }
+
+    public function adminDeleteCucian(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
+            Auth::flash('admin_error', 'Sesi form sudah kedaluwarsa. Silakan coba lagi.');
+            Auth::redirect('/admin/cucian');
+        }
+
+        try {
+            $nota = $this->laundry()->deleteLaundry((string) ($_POST['nota'] ?? ''), Auth::currentAdminId() ?? 0);
+            Auth::flash('admin_success', 'Data cucian ' . $nota . ' berhasil dihapus.');
+        } catch (Throwable $error) {
+            Auth::flash('admin_error', $error->getMessage());
+        }
+
+        Auth::redirect('/admin/cucian');
+    }
+
     public function adminTransaksi(): void
     {
         Auth::requireAdmin();
@@ -155,8 +197,10 @@ class HomeController extends Controller
         $packages = $this->laundry()->packages();
         $filters = $this->laundryFilters();
         $dateRange = $filters['range'];
+        $totalRows = $this->laundry()->countOrders($dateRange, $filters);
+        $pagination = $this->pagination($totalRows);
 
-        $this->view('admin/transaksi', [
+        $this->adminView('admin/transaksi', [
             'title' => 'Transaksi - Ghava Laundry',
             'admin' => Auth::user(),
             'stats' => [
@@ -165,14 +209,15 @@ class HomeController extends Controller
                 ['tone' => 'orange', 'icon' => '&#9719;', 'label' => 'Belum Selesai', 'value' => (string) $stats['open'], 'meta' => 'Transaksi'],
                 ['tone' => 'green', 'icon' => '&#10003;', 'label' => 'Selesai', 'value' => (string) $stats['completed'], 'meta' => 'Transaksi'],
             ],
-            'transactions' => $this->laundry()->orderRows(10, $dateRange, $filters),
+            'transactions' => $this->laundry()->orderRows($pagination['perPage'], $dateRange, $filters, $pagination['offset']),
             'statusSummary' => $this->laundry()->statusSummary($dateRange, $filters),
             'noteActivities' => $this->laundry()->activities(5, ['cucian', 'status', 'tracking']),
             'transactionSummary' => $this->laundry()->transactionSummary($dateRange, $filters),
             'serviceOptions' => $this->serviceOptions($packages),
             'statusOptions' => $this->laundryStatusOptions(),
             'filters' => $filters,
-            'totalRows' => $this->laundry()->countOrders($dateRange, $filters),
+            'totalRows' => $totalRows,
+            'pagination' => $pagination,
         ]);
     }
 
@@ -180,16 +225,21 @@ class HomeController extends Controller
     {
         Auth::requireAdmin();
         $packages = $this->laundry()->packages();
+        $filters = $this->laundryFilters();
+        $dateRange = $filters['range'];
 
-        $this->view('admin/update-status', [
+        $this->adminView('admin/update-status', [
             'title' => 'Update Status - Ghava Laundry',
             'admin' => Auth::user(),
             'csrfToken' => Auth::csrfToken(),
             'successMessage' => Auth::pullFlash('admin_success'),
             'errorMessage' => Auth::pullFlash('admin_error'),
-            'orders' => $this->laundry()->statusOrders(10),
+            'orders' => $this->laundry()->statusOrders(10, $dateRange, $filters),
             'stats' => $this->statusCards(),
             'serviceOptions' => $this->serviceOptions($packages),
+            'statusOptions' => $this->laundryStatusOptions(),
+            'filters' => $filters,
+            'totalRows' => $this->laundry()->countOrders($dateRange, $filters),
         ]);
     }
 
@@ -222,8 +272,12 @@ class HomeController extends Controller
         Auth::requireAdmin();
         $stats = $this->laundry()->customerStats();
         $total = max(1, $stats['total']);
+        $filters = $this->customerFilters();
+        $dateRange = $filters['range'];
+        $totalRows = $this->laundry()->countCustomers($dateRange, $filters);
+        $pagination = $this->pagination($totalRows);
 
-        $this->view('admin/pelanggan', [
+        $this->adminView('admin/pelanggan', [
             'title' => 'Pelanggan - Ghava Laundry',
             'admin' => Auth::user(),
             'csrfToken' => Auth::csrfToken(),
@@ -236,14 +290,17 @@ class HomeController extends Controller
                 ['tone' => 'purple', 'icon' => '&#128100;&#43;', 'label' => 'Pelanggan Baru', 'value' => (string) $stats['new'], 'meta' => 'Orang'],
                 ['tone' => 'orange', 'icon' => '&#128706;', 'label' => 'Cucian Berjalan', 'value' => (string) $stats['active'], 'meta' => 'Orang'],
             ],
-            'customers' => $this->laundry()->customerRows(10),
+            'customers' => $this->laundry()->customerRows($pagination['perPage'], $dateRange, $filters, $pagination['offset']),
             'customerSummary' => [
                 ['label' => 'Pelanggan Aktif', 'value' => $stats['active'], 'percent' => $this->percent($stats['active'], $total), 'tone' => 'blue'],
                 ['label' => 'Pelanggan Baru', 'value' => $stats['new'], 'percent' => $this->percent($stats['new'], $total), 'tone' => 'green'],
                 ['label' => 'Pelanggan Lainnya', 'value' => max(0, $stats['total'] - $stats['active'] - $stats['new']), 'percent' => $this->percent(max(0, $stats['total'] - $stats['active'] - $stats['new']), $total), 'tone' => 'orange'],
             ],
             'activities' => $this->laundry()->activities(5, ['cucian', 'status', 'tracking', 'pelanggan']),
-            'totalRows' => $this->laundry()->countCustomers(),
+            'filters' => $filters,
+            'customerStatusOptions' => $this->customerStatusOptions(),
+            'totalRows' => $totalRows,
+            'pagination' => $pagination,
         ]);
     }
 
@@ -266,11 +323,49 @@ class HomeController extends Controller
         Auth::redirect('/admin/pelanggan');
     }
 
+    public function adminUpdatePelanggan(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
+            Auth::flash('admin_error', 'Sesi form sudah kedaluwarsa. Silakan coba lagi.');
+            Auth::redirect('/admin/pelanggan');
+        }
+
+        try {
+            $customerCode = $this->laundry()->updateCustomer($_POST, Auth::currentAdminId() ?? 0);
+            Auth::flash('admin_success', 'Data pelanggan ' . $customerCode . ' berhasil diperbarui.');
+        } catch (Throwable $error) {
+            Auth::flash('admin_error', $error->getMessage());
+        }
+
+        Auth::redirect('/admin/pelanggan');
+    }
+
+    public function adminDeletePelanggan(): void
+    {
+        Auth::requireAdmin();
+
+        if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
+            Auth::flash('admin_error', 'Sesi form sudah kedaluwarsa. Silakan coba lagi.');
+            Auth::redirect('/admin/pelanggan');
+        }
+
+        try {
+            $customerCode = $this->laundry()->deleteCustomer((int) ($_POST['customer_id'] ?? 0), Auth::currentAdminId() ?? 0);
+            Auth::flash('admin_success', 'Data pelanggan ' . $customerCode . ' berhasil dihapus.');
+        } catch (Throwable $error) {
+            Auth::flash('admin_error', $error->getMessage());
+        }
+
+        Auth::redirect('/admin/pelanggan');
+    }
+
     public function adminPaketLaundry(): void
     {
         Auth::requireAdmin();
 
-        $this->view('admin/paket-laundry', [
+        $this->adminView('admin/paket-laundry', [
             'title' => 'Paket Laundry - Ghava Laundry',
             'admin' => Auth::user(),
             'csrfToken' => Auth::csrfToken(),
@@ -342,7 +437,7 @@ class HomeController extends Controller
     {
         Auth::requireAdmin();
 
-        $this->view('admin/pengaturan', [
+        $this->adminView('admin/pengaturan', [
             'title' => 'Pengaturan - Ghava Laundry',
             'admin' => Auth::user(),
             'settings' => $this->laundry()->settings(),
@@ -380,6 +475,26 @@ class HomeController extends Controller
         Auth::redirect('/admin/pengaturan');
     }
 
+    public function adminMarkTopbarRead(): void
+    {
+        Auth::requireAdmin();
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!Auth::verifyCsrf($_POST['_token'] ?? null)) {
+            http_response_code(419);
+            echo json_encode(['ok' => false, 'message' => 'Sesi sudah kedaluwarsa.']);
+            return;
+        }
+
+        try {
+            $this->laundry()->markTopbarRead((string) ($_POST['type'] ?? ''), Auth::currentAdminId());
+            echo json_encode(['ok' => true]);
+        } catch (Throwable $error) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => $error->getMessage()]);
+        }
+    }
+
     private function laundry(): LaundryRepository
     {
         if ($this->laundry === null) {
@@ -387,6 +502,21 @@ class HomeController extends Controller
         }
 
         return $this->laundry;
+    }
+
+    private function adminView(string $view, array $data): void
+    {
+        $adminId = Auth::currentAdminId();
+
+        $data += [
+            'admin' => Auth::user(),
+            'settings' => $this->laundry()->settings(),
+            'csrfToken' => Auth::csrfToken(),
+            'topbarNotifications' => $this->laundry()->topbarNotifications($adminId),
+            'topbarMessages' => $this->laundry()->topbarMessages($adminId),
+        ];
+
+        $this->view($view, $data);
     }
 
     private function laundryFilters(): array
@@ -426,6 +556,67 @@ class HomeController extends Controller
         ];
     }
 
+    private function pagination(int $totalRows, int $defaultPerPage = 10): array
+    {
+        $perPageOptions = [10, 25, 50];
+        $perPage = (int) ($_GET['per_page'] ?? $defaultPerPage);
+
+        if (!in_array($perPage, $perPageOptions, true)) {
+            $perPage = $defaultPerPage;
+        }
+
+        $totalPages = max(1, (int) ceil(max(0, $totalRows) / $perPage));
+        $page = (int) ($_GET['page'] ?? 1);
+        $page = max(1, min($page, $totalPages));
+        $offset = ($page - 1) * $perPage;
+
+        return [
+            'page' => $page,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
+            'totalPages' => $totalPages,
+            'offset' => $offset,
+            'from' => $totalRows > 0 ? $offset + 1 : 0,
+            'to' => min($offset + $perPage, max(0, $totalRows)),
+        ];
+    }
+
+    private function customerFilters(): array
+    {
+        $statusOptions = array_column($this->customerStatusOptions(), 'value');
+        $status = trim((string) ($_GET['status'] ?? ''));
+        $status = in_array($status, $statusOptions, true) ? $status : '';
+        $dateFrom = $this->normalizeDateValue($_GET['date_from'] ?? '');
+        $dateTo = $this->normalizeDateValue($_GET['date_to'] ?? '');
+
+        if ($dateFrom !== '' && $dateTo !== '' && $dateFrom > $dateTo) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+
+        $range = null;
+
+        if ($dateFrom !== '' || $dateTo !== '') {
+            $startDate = $dateFrom !== '' ? $dateFrom : $dateTo;
+            $endDate = $dateTo !== '' ? $dateTo : $dateFrom;
+            $timezone = new DateTimeZone('Asia/Makassar');
+            $start = new DateTimeImmutable($startDate . ' 00:00:00', $timezone);
+            $end = (new DateTimeImmutable($endDate . ' 00:00:00', $timezone))->modify('+1 day');
+
+            $range = [
+                'start' => $start->format('Y-m-d H:i:s'),
+                'end' => $end->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        return [
+            'search' => trim((string) ($_GET['q'] ?? '')),
+            'status' => $status,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+            'range' => $range,
+        ];
+    }
+
     private function normalizeDateValue($value): string
     {
         $value = trim((string) $value);
@@ -446,6 +637,15 @@ class HomeController extends Controller
         return ['Antrean', 'Diproses', 'Dicuci', 'Dikeringkan', 'Disetrika', 'Selesai', 'Diambil'];
     }
 
+    private function customerStatusOptions(): array
+    {
+        return [
+            ['value' => 'active', 'label' => 'Pelanggan Aktif'],
+            ['value' => 'new', 'label' => 'Pelanggan Baru'],
+            ['value' => 'inactive', 'label' => 'Pelanggan Tidak Aktif'],
+        ];
+    }
+
     private function dashboardPeriod(): array
     {
         $timezone = new DateTimeZone('Asia/Makassar');
@@ -464,7 +664,7 @@ class HomeController extends Controller
         }
 
         $end = $start->modify('first day of next month')->setTime(0, 0);
-        $shortLabel = $this->dashboardMonthShortLabel($start, $currentStart);
+        $shortLabel = $this->dashboardMonthShortLabel($start);
         $rangeLabel = $this->dashboardMonthRangeLabel($start);
 
         return [
@@ -504,16 +704,8 @@ class HomeController extends Controller
             . $monthStart->format('Y') . ' (' . $this->dashboardMonthRangeLabel($monthStart) . ')';
     }
 
-    private function dashboardMonthShortLabel(DateTimeImmutable $monthStart, DateTimeImmutable $currentStart): string
+    private function dashboardMonthShortLabel(DateTimeImmutable $monthStart): string
     {
-        if ($monthStart->format('Y-m') === $currentStart->format('Y-m')) {
-            return 'Bulan Ini';
-        }
-
-        if ($monthStart->format('Y-m') === $currentStart->modify('-1 month')->format('Y-m')) {
-            return 'Bulan Lalu';
-        }
-
         return $this->monthName((int) $monthStart->format('n')) . ' ' . $monthStart->format('Y');
     }
 

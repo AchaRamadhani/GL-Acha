@@ -7,6 +7,13 @@ $setting = static fn (string $key, string $fallback = ''): string => (string) ($
 $adminName = (string) ($admin['name'] ?? 'Admin Laundry');
 $adminUsername = (string) ($admin['username'] ?? 'admin');
 $adminRole = (string) ($admin['role'] ?? 'Administrator');
+$currentOpenTime = $setting('open_time', '07:00');
+$currentCloseTime = $setting('close_time', '21:00');
+$timeOptions = array_values(array_unique(array_merge(
+    array_map(static fn (int $hour): string => sprintf('%02d:00', $hour), range(6, 22)),
+    [$currentOpenTime, $currentCloseTime]
+)));
+sort($timeOptions);
 
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
@@ -84,14 +91,14 @@ ob_start();
                             <span>Username</span>
                             <span class="settings-input-shell">
                                 <i aria-hidden="true">&#128100;</i>
-                                <input id="settingUsername" name="username" type="text" value="<?= htmlspecialchars($adminUsername, ENT_QUOTES, 'UTF-8') ?>" autocomplete="username">
+                                <input id="settingUsername" name="username" type="text" value="<?= htmlspecialchars($adminUsername, ENT_QUOTES, 'UTF-8') ?>" autocomplete="username" maxlength="50" required>
                             </span>
                         </label>
                         <label class="settings-field" for="settingEmail" data-settings-field data-setting-label="Email">
                             <span>Email</span>
                             <span class="settings-input-shell">
                                 <i aria-hidden="true">&#9993;</i>
-                                <input id="settingEmail" name="email" type="email" value="<?= htmlspecialchars($setting('admin_email', 'admin@ghavalaundry.com'), ENT_QUOTES, 'UTF-8') ?>" autocomplete="email">
+                                <input id="settingEmail" name="email" type="email" value="<?= htmlspecialchars($setting('admin_email', 'admin@ghavalaundry.com'), ENT_QUOTES, 'UTF-8') ?>" autocomplete="email" maxlength="120" required>
                             </span>
                         </label>
                     </article>
@@ -102,20 +109,20 @@ ob_start();
                         <div class="settings-field-grid">
                             <label class="settings-field" for="settingLaundryName" data-settings-field data-setting-label="Nama Laundry">
                                 <span>Nama Laundry</span>
-                                <input id="settingLaundryName" name="laundry_name" type="text" value="<?= htmlspecialchars($setting('laundry_name', 'Ghava Laundry'), ENT_QUOTES, 'UTF-8') ?>" data-laundry-name-input>
+                                <input id="settingLaundryName" name="laundry_name" type="text" value="<?= htmlspecialchars($setting('laundry_name', 'Ghava Laundry'), ENT_QUOTES, 'UTF-8') ?>" maxlength="80" required data-laundry-name-input>
                             </label>
                             <label class="settings-field" for="settingWhatsapp" data-settings-field data-setting-label="Nomor WhatsApp">
                                 <span>Nomor WhatsApp</span>
                                 <span class="settings-input-shell">
                                     <i aria-hidden="true">&#128222;</i>
-                                    <input id="settingWhatsapp" name="whatsapp" type="tel" value="<?= htmlspecialchars($setting('whatsapp', '081242910340'), ENT_QUOTES, 'UTF-8') ?>">
+                                    <input id="settingWhatsapp" name="whatsapp" type="tel" value="<?= htmlspecialchars($setting('whatsapp', '081242910340'), ENT_QUOTES, 'UTF-8') ?>" inputmode="tel" maxlength="20" required>
                                 </span>
                             </label>
                         </div>
 
                         <label class="settings-field" for="settingAddress" data-settings-field data-setting-label="Alamat">
                             <span>Alamat</span>
-                            <input id="settingAddress" name="address" type="text" value="<?= htmlspecialchars($setting('address'), ENT_QUOTES, 'UTF-8') ?>">
+                            <input id="settingAddress" name="address" type="text" value="<?= htmlspecialchars($setting('address'), ENT_QUOTES, 'UTF-8') ?>" maxlength="180" required>
                         </label>
 
                         <div class="settings-field settings-time-field" data-settings-field data-setting-label="Jam Operasional">
@@ -124,8 +131,8 @@ ob_start();
                                 <label class="settings-select-shell" for="settingOpenTime">
                                     <i aria-hidden="true">&#128337;</i>
                                     <select id="settingOpenTime" name="open_time">
-                                        <?php foreach (['07:00', '08:00', '09:00'] as $time): ?>
-                                            <option <?= $setting('open_time', '07:00') === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
+                                        <?php foreach ($timeOptions as $time): ?>
+                                            <option value="<?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?>" <?= $currentOpenTime === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </label>
@@ -133,8 +140,8 @@ ob_start();
                                 <label class="settings-select-shell" for="settingCloseTime">
                                     <i aria-hidden="true">&#128337;</i>
                                     <select id="settingCloseTime" name="close_time">
-                                        <?php foreach (['18:00', '19:00', '20:00', '21:00'] as $time): ?>
-                                            <option <?= $setting('close_time', '21:00') === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
+                                        <?php foreach ($timeOptions as $time): ?>
+                                            <option value="<?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?>" <?= $currentCloseTime === $time ? 'selected' : '' ?>><?= htmlspecialchars($time, ENT_QUOTES, 'UTF-8') ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </label>
@@ -143,7 +150,7 @@ ob_start();
 
                         <label class="settings-field" for="settingMessage" data-settings-field data-setting-label="Pesan Otomatis WhatsApp">
                             <span>Pesan Otomatis WhatsApp saat status selesai</span>
-                            <textarea id="settingMessage" name="message" maxlength="300" data-message-counter-source><?= htmlspecialchars($setting('message'), ENT_QUOTES, 'UTF-8') ?></textarea>
+                            <textarea id="settingMessage" name="message" maxlength="300" required data-message-counter-source><?= htmlspecialchars($setting('message'), ENT_QUOTES, 'UTF-8') ?></textarea>
                         </label>
                         <div class="settings-helper-row">
                             <small>Gunakan {nama_pelanggan} dan {kode_pesanan} sebagai placeholder dinamis.</small>
@@ -188,7 +195,7 @@ ob_start();
                             </span>
                             <select id="settingDateFormat" name="date_format">
                                 <?php foreach (['DD MMMM YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'] as $format): ?>
-                                    <option <?= $setting('date_format', 'DD MMMM YYYY') === $format ? 'selected' : '' ?>><?= htmlspecialchars($format, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <option value="<?= htmlspecialchars($format, ENT_QUOTES, 'UTF-8') ?>" <?= $setting('date_format', 'DD MMMM YYYY') === $format ? 'selected' : '' ?>><?= htmlspecialchars($format, ENT_QUOTES, 'UTF-8') ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </label>
@@ -229,7 +236,7 @@ ob_start();
                 </section>
 
                 <div class="settings-action-bar">
-                    <p data-settings-feedback>Klik bagian form untuk mengedit data pengaturan.</p>
+                    <p data-settings-feedback aria-live="polite"></p>
                     <button class="settings-save-button" type="submit">
                         <span aria-hidden="true">&#128190;</span>
                         Simpan Perubahan

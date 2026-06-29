@@ -6,6 +6,20 @@ $admin = $admin ?? [];
 $adminName = (string) ($admin['name'] ?? 'Admin Laundry');
 $adminRole = (string) ($admin['role'] ?? 'Administrator');
 
+if (!function_exists('laundryActionIcon')) {
+    function laundryActionIcon(string $name): string
+    {
+        $attributes = 'class="laundry-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"';
+
+        return match ($name) {
+            'view' => '<svg ' . $attributes . '><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg>',
+            'edit' => '<svg ' . $attributes . '><path d="m14.4 5.4 4.2 4.2"/><path d="M4.6 19.4 6 14l9.8-9.8a2.1 2.1 0 0 1 3 3L9 17l-5.4 1.4Z"/><path d="M13.6 6.4 17.6 10.4"/></svg>',
+            'delete' => '<svg ' . $attributes . '><path d="M4.5 7h15"/><path d="M9.5 7V5.4c0-.8.6-1.4 1.4-1.4h2.2c.8 0 1.4.6 1.4 1.4V7"/><path d="M17.5 7 16.7 19a1.6 1.6 0 0 1-1.6 1.5H8.9A1.6 1.6 0 0 1 7.3 19L6.5 7"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>',
+            default => '',
+        };
+    }
+}
+
 $sidebarItems = [
     ['icon' => '&#8962;', 'label' => 'Dashboard', 'href' => '/admin'],
     ['icon' => '&#128203;', 'label' => 'Data Cucian', 'href' => '/admin/cucian'],
@@ -50,6 +64,70 @@ $activities = $activities ?? [
     ['tone' => 'blue', 'name' => 'Dewi Lestari', 'detail' => 'Pesanan selesai diambil', 'time' => '1 hari lalu'],
 ];
 $totalRows = $totalRows ?? count($customers);
+$customerStatusOptions = $customerStatusOptions ?? [
+    ['value' => 'active', 'label' => 'Pelanggan Aktif'],
+    ['value' => 'new', 'label' => 'Pelanggan Baru'],
+    ['value' => 'inactive', 'label' => 'Pelanggan Tidak Aktif'],
+];
+$filters = array_merge([
+    'search' => '',
+    'status' => '',
+    'date_from' => '',
+    'date_to' => '',
+], is_array($filters ?? null) ? $filters : []);
+$filterSearchSafe = htmlspecialchars((string) $filters['search'], ENT_QUOTES, 'UTF-8');
+$filterStatus = (string) $filters['status'];
+$filterDateFromSafe = htmlspecialchars((string) $filters['date_from'], ENT_QUOTES, 'UTF-8');
+$filterDateToSafe = htmlspecialchars((string) $filters['date_to'], ENT_QUOTES, 'UTF-8');
+$pagination = array_merge([
+    'page' => 1,
+    'perPage' => 10,
+    'perPageOptions' => [10],
+    'totalPages' => 1,
+    'from' => count($customers) > 0 ? 1 : 0,
+    'to' => count($customers),
+], is_array($pagination ?? null) ? $pagination : []);
+$currentPage = max(1, (int) $pagination['page']);
+$currentPerPage = max(1, (int) $pagination['perPage']);
+$totalPages = max(1, (int) $pagination['totalPages']);
+$paginationFrom = max(0, (int) $pagination['from']);
+$paginationTo = max(0, (int) $pagination['to']);
+$perPageOptions = array_values(array_filter(array_map('intval', (array) $pagination['perPageOptions'])));
+$perPageOptions = $perPageOptions === [] ? [$currentPerPage] : $perPageOptions;
+$paginationTokens = [];
+$lastPaginationPage = 0;
+
+for ($pageNumber = 1; $pageNumber <= $totalPages; $pageNumber++) {
+    if ($pageNumber === 1 || $pageNumber === $totalPages || abs($pageNumber - $currentPage) <= 2) {
+        if ($lastPaginationPage > 0 && $pageNumber - $lastPaginationPage > 1) {
+            $paginationTokens[] = '...';
+        }
+
+        $paginationTokens[] = $pageNumber;
+        $lastPaginationPage = $pageNumber;
+    }
+}
+
+$paginationUrl = static function (int $page, ?int $perPage = null) use ($safeBaseUrl, $currentPerPage): string {
+    $query = $_GET;
+    $query['page'] = max(1, $page);
+    $query['per_page'] = $perPage ?? $currentPerPage;
+    $queryString = http_build_query($query);
+
+    return $safeBaseUrl . '/admin/pelanggan' . ($queryString !== '' ? '?' . htmlspecialchars($queryString, ENT_QUOTES, 'UTF-8') : '');
+};
+$customerCrudData = array_map(static fn (array $row): array => [
+    'id' => (int) ($row['database_id'] ?? 0),
+    'code' => (string) ($row['id'] ?? ''),
+    'name' => (string) ($row['name'] ?? ''),
+    'phone' => (string) ($row['phone'] ?? ''),
+    'address' => (string) ($row['address_value'] ?? (($row['address'] ?? '') === '-' ? '' : ($row['address'] ?? ''))),
+    'transactions' => (int) ($row['transactions'] ?? 0),
+    'active' => (int) ($row['active'] ?? 0),
+    'last' => (string) ($row['last'] ?? '-'),
+    'created' => (string) ($row['created'] ?? '-'),
+], $customers);
+$customerCrudJson = json_encode($customerCrudData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 
 ob_start();
 ?>
@@ -89,7 +167,7 @@ ob_start();
                     <h1>Pelanggan</h1>
                     <p>Kelola data pelanggan dan lihat riwayat aktivitas laundry mereka.</p>
                 </div>
-                <button class="add-laundry-button customer-add-button" type="button" data-laundry-modal-open="customer">
+                <button class="add-laundry-button customer-add-button" type="button" data-laundry-modal-open="customer" data-customer-create>
                     <span aria-hidden="true">+</span>
                     Tambah Pelanggan
                 </button>
@@ -117,30 +195,37 @@ ob_start();
 
             <section class="laundry-workspace customer-workspace">
                 <div class="laundry-data-panel customer-data-panel">
-                    <form class="laundry-filter-bar customer-filter-bar" action="#" method="get">
+                    <form class="laundry-filter-bar customer-filter-bar" action="<?= $safeBaseUrl ?>/admin/pelanggan" method="get">
                         <label class="laundry-search-field" for="customerSearch">
                             <span aria-hidden="true">&#128269;</span>
-                            <input id="customerSearch" type="search" placeholder="Cari nama pelanggan atau no. telepon..." autocomplete="off">
+                            <input id="customerSearch" name="q" type="search" placeholder="Cari nama pelanggan atau no. telepon..." value="<?= $filterSearchSafe ?>" autocomplete="off">
                         </label>
-                        <select aria-label="Filter pelanggan">
-                            <option>Semua Pelanggan</option>
-                            <option>Pelanggan Aktif</option>
-                            <option>Pelanggan Baru</option>
-                            <option>Pelanggan Tidak Aktif</option>
+                        <select name="status" aria-label="Filter pelanggan">
+                            <option value="">Semua Pelanggan</option>
+                            <?php foreach ($customerStatusOptions as $option): ?>
+                                <?php
+                                $optionValue = (string) ($option['value'] ?? '');
+                                $optionLabel = (string) ($option['label'] ?? $optionValue);
+                                ?>
+                                <option value="<?= htmlspecialchars($optionValue, ENT_QUOTES, 'UTF-8') ?>" <?= $filterStatus === $optionValue ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($optionLabel, ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
-                        <button class="date-filter" type="button">
+                        <div class="date-filter date-filter-range" aria-label="Filter tanggal daftar pelanggan">
                             <span aria-hidden="true">&#128197;</span>
-                            Bulan Ini (1 - 31 Mei 2026)
-                            <span aria-hidden="true">&#8964;</span>
-                        </button>
-                        <button class="filter-primary" type="button">
-                            <span aria-hidden="true">&#9661;</span>
+                            <input id="customerDateFrom" name="date_from" type="date" value="<?= $filterDateFromSafe ?>" aria-label="Tanggal mulai">
+                            <span class="date-filter-separator" aria-hidden="true">-</span>
+                            <input id="customerDateTo" name="date_to" type="date" value="<?= $filterDateToSafe ?>" aria-label="Tanggal akhir">
+                        </div>
+                        <button class="filter-primary" type="submit">
+                            <span class="filter-button-icon" aria-hidden="true"></span>
                             Filter
                         </button>
-                        <button class="filter-reset" type="button">
+                        <a class="filter-reset" href="<?= $safeBaseUrl ?>/admin/pelanggan">
                             <span aria-hidden="true">&#8635;</span>
                             Reset Filter
-                        </button>
+                        </a>
                     </form>
 
                     <div class="laundry-table-wrap">
@@ -159,42 +244,73 @@ ob_start();
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($customers as $customer): ?>
+                                <?php if ($customers === []): ?>
                                     <tr>
-                                        <td><?= $customer['no'] ?></td>
-                                        <td><?= htmlspecialchars($customer['id'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td><?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td><?= htmlspecialchars($customer['phone'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td><?= htmlspecialchars($customer['address'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td><?= $customer['transactions'] ?></td>
-                                        <td><?= $customer['active'] ?></td>
-                                        <td><?= htmlspecialchars($customer['last'], ENT_QUOTES, 'UTF-8') ?></td>
-                                        <td>
-                                            <div class="customer-actions" aria-label="Aksi pelanggan">
-                                                <button class="view" type="button" aria-label="Lihat pelanggan">&#128065;</button>
-                                                <button class="edit" type="button" aria-label="Ubah pelanggan">&#9998;</button>
-                                                <button class="delete" type="button" aria-label="Hapus pelanggan">&#128465;</button>
-                                            </div>
-                                        </td>
+                                        <td class="laundry-empty-row" colspan="9">Data pelanggan tidak ditemukan. Coba ubah atau reset filter.</td>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php else: ?>
+                                    <?php foreach ($customers as $customer): ?>
+                                        <tr>
+                                            <td><?= $customer['no'] ?></td>
+                                            <td><?= htmlspecialchars($customer['id'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= htmlspecialchars($customer['phone'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= htmlspecialchars($customer['address'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= $customer['transactions'] ?></td>
+                                            <td><?= $customer['active'] ?></td>
+                                            <td><?= htmlspecialchars($customer['last'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td>
+                                                <div class="customer-actions" aria-label="Aksi pelanggan">
+                                                    <button class="view" type="button" aria-label="Lihat pelanggan" data-customer-action="view" data-customer-id="<?= (int) ($customer['database_id'] ?? 0) ?>"><?= laundryActionIcon('view') ?></button>
+                                                    <button class="edit" type="button" aria-label="Ubah pelanggan" data-customer-action="edit" data-customer-id="<?= (int) ($customer['database_id'] ?? 0) ?>"><?= laundryActionIcon('edit') ?></button>
+                                                    <button class="delete" type="button" aria-label="Hapus pelanggan" data-customer-action="delete" data-customer-id="<?= (int) ($customer['database_id'] ?? 0) ?>"><?= laundryActionIcon('delete') ?></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
 
                     <div class="laundry-pagination customer-pagination">
-                        <p>Menampilkan <?= count($customers) > 0 ? '1' : '0' ?> - <?= count($customers) ?> dari <?= (int) $totalRows ?> pelanggan</p>
-                        <select aria-label="Jumlah pelanggan per halaman">
-                            <option>10 per halaman</option>
-                        </select>
+                        <p>Menampilkan <?= (int) $paginationFrom ?> - <?= (int) $paginationTo ?> dari <?= (int) $totalRows ?> pelanggan</p>
+                        <form class="pagination-size-form" action="<?= $safeBaseUrl ?>/admin/pelanggan" method="get">
+                            <input type="hidden" name="q" value="<?= $filterSearchSafe ?>">
+                            <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus, ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="date_from" value="<?= $filterDateFromSafe ?>">
+                            <input type="hidden" name="date_to" value="<?= $filterDateToSafe ?>">
+                            <input type="hidden" name="page" value="1">
+                            <select name="per_page" aria-label="Jumlah pelanggan per halaman" onchange="this.form.submit()">
+                                <?php foreach ($perPageOptions as $perPageOption): ?>
+                                    <option value="<?= (int) $perPageOption ?>" <?= (int) $perPageOption === $currentPerPage ? 'selected' : '' ?>>
+                                        <?= (int) $perPageOption ?> per halaman
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </form>
                         <div class="page-buttons">
-                            <button type="button" aria-label="Sebelumnya">&#8249;</button>
-                            <button class="active" type="button">1</button>
-                            <button type="button">2</button>
-                            <button type="button">3</button>
-                            <span>...</span>
-                            <button type="button">9</button>
-                            <button type="button" aria-label="Berikutnya">&#8250;</button>
+                            <?php if ($currentPage > 1): ?>
+                                <a class="pagination-page" href="<?= $paginationUrl($currentPage - 1) ?>" aria-label="Sebelumnya">&#8249;</a>
+                            <?php else: ?>
+                                <span class="pagination-page disabled" aria-hidden="true">&#8249;</span>
+                            <?php endif; ?>
+
+                            <?php foreach ($paginationTokens as $paginationToken): ?>
+                                <?php if ($paginationToken === '...'): ?>
+                                    <span class="pagination-ellipsis" aria-hidden="true">...</span>
+                                <?php elseif ((int) $paginationToken === $currentPage): ?>
+                                    <span class="pagination-page active" aria-current="page"><?= (int) $paginationToken ?></span>
+                                <?php else: ?>
+                                    <a class="pagination-page" href="<?= $paginationUrl((int) $paginationToken) ?>"><?= (int) $paginationToken ?></a>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+
+                            <?php if ($currentPage < $totalPages): ?>
+                                <a class="pagination-page" href="<?= $paginationUrl($currentPage + 1) ?>" aria-label="Berikutnya">&#8250;</a>
+                            <?php else: ?>
+                                <span class="pagination-page disabled" aria-hidden="true">&#8250;</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -209,10 +325,14 @@ ob_start();
                             <div class="customer-summary-list">
                                 <?php foreach ($customerSummary as $summary): ?>
                                     <p>
-                                        <span class="<?= htmlspecialchars($summary['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span>
-                                        <?= htmlspecialchars($summary['label'], ENT_QUOTES, 'UTF-8') ?>
-                                        <strong><?= $summary['value'] ?></strong>
-                                        <small>(<?= htmlspecialchars($summary['percent'], ENT_QUOTES, 'UTF-8') ?>)</small>
+                                        <span class="customer-summary-dot <?= htmlspecialchars($summary['tone'], ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true"></span>
+                                        <span class="customer-summary-copy">
+                                            <span class="customer-summary-label"><?= htmlspecialchars($summary['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                                            <span class="customer-summary-meta">
+                                                <strong><?= $summary['value'] ?></strong>
+                                                <small><?= htmlspecialchars($summary['percent'], ENT_QUOTES, 'UTF-8') ?></small>
+                                            </span>
+                                        </span>
                                     </p>
                                 <?php endforeach; ?>
                             </div>
@@ -239,21 +359,29 @@ ob_start();
             </section>
         </main>
 
+        <script id="customerCrudData" type="application/json"><?= $customerCrudJson ?: '[]' ?></script>
+
+        <form action="<?= $safeBaseUrl ?>/admin/pelanggan/delete" method="post" data-customer-delete-form hidden>
+            <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+            <input type="hidden" name="customer_id" value="">
+        </form>
+
         <div class="laundry-modal-backdrop customer-modal-backdrop" data-laundry-modal="customer" hidden>
             <section class="laundry-dialog customer-dialog" role="dialog" aria-modal="true" aria-labelledby="customerModalTitle">
                 <button class="laundry-modal-close" type="button" aria-label="Tutup form tambah pelanggan" data-laundry-modal-close>&times;</button>
 
-                <header class="laundry-modal-header">
+                <header class="laundry-modal-header" data-customer-modal-header>
                     <h2 id="customerModalTitle">Tambah Data Pelanggan</h2>
                     <p>Masukkan data pelanggan dengan lengkap.</p>
                 </header>
 
-                <form class="laundry-modal-form customer-modal-form" action="<?= $safeBaseUrl ?>/admin/pelanggan" method="post" data-laundry-form>
+                <form class="laundry-modal-form customer-modal-form" action="<?= $safeBaseUrl ?>/admin/pelanggan" method="post" data-laundry-form data-customer-form data-create-action="<?= $safeBaseUrl ?>/admin/pelanggan" data-update-action="<?= $safeBaseUrl ?>/admin/pelanggan/update">
                     <input type="hidden" name="_token" value="<?= $csrfTokenSafe ?>">
+                    <input type="hidden" name="customer_id" value="" data-customer-id-field>
 
                     <div class="laundry-modal-field customer-id-field">
                         <label for="customerCode">ID Pelanggan</label>
-                        <input id="customerCode" type="text" value="<?= $nextCustomerCodeSafe ?>" readonly>
+                        <input id="customerCode" type="text" value="<?= $nextCustomerCodeSafe ?>" readonly data-customer-code-field data-next-customer-code="<?= $nextCustomerCodeSafe ?>">
                         <small>ID pelanggan dibuat otomatis</small>
                     </div>
 
@@ -280,9 +408,9 @@ ob_start();
                         </button>
                         <div>
                             <button class="laundry-cancel-button" type="button" data-laundry-modal-close>Batal</button>
-                            <button class="laundry-save-button" type="submit">
+                            <button class="laundry-save-button" type="submit" data-customer-save-button>
                                 <span aria-hidden="true">&#128190;</span>
-                                Simpan Data
+                                <span data-customer-submit-label>Simpan Data</span>
                             </button>
                         </div>
                     </div>

@@ -155,6 +155,7 @@ if (dashboardMenuToggle && dashboardSidebar) {
 
 const dashboardPopoverTriggers = Array.from(document.querySelectorAll('[data-dashboard-popover-trigger]'));
 const dashboardPopovers = Array.from(document.querySelectorAll('[data-dashboard-popover]'));
+const dashboardUserbar = document.querySelector('[data-dashboard-userbar]');
 
 if (dashboardPopoverTriggers.length && dashboardPopovers.length) {
     let activeDashboardPopover = null;
@@ -223,21 +224,66 @@ if (dashboardPopoverTriggers.length && dashboardPopovers.length) {
         });
     });
 
-    document.querySelector('[data-dashboard-mark-read]')?.addEventListener('click', () => {
-        document.querySelectorAll('.dashboard-notification-popover .is-unread').forEach((item) => {
+    const setDashboardPopoverRead = (type) => {
+        const popover = findDashboardPopover(type);
+
+        popover?.querySelectorAll('.is-unread').forEach((item) => {
             item.classList.remove('is-unread');
         });
 
-        document.querySelectorAll('.dashboard-notification-popover .dashboard-popover-dot').forEach((dot) => {
+        popover?.querySelectorAll('.dashboard-popover-dot').forEach((dot) => {
             dot.hidden = true;
         });
 
-        const notificationTrigger = dashboardPopoverTriggers.find((trigger) => trigger.dataset.dashboardPopoverTrigger === 'notifications');
-        const notificationBadge = notificationTrigger?.querySelector('i');
+        const trigger = dashboardPopoverTriggers.find((item) => item.dataset.dashboardPopoverTrigger === type);
+        const badge = trigger?.querySelector('[data-dashboard-badge]');
 
-        if (notificationBadge) {
-            notificationBadge.hidden = true;
+        if (badge) {
+            badge.textContent = '0';
+            badge.hidden = true;
         }
+    };
+
+    const persistDashboardPopoverRead = (type) => {
+        const url = dashboardUserbar?.dataset.dashboardReadUrl;
+        const csrf = dashboardUserbar?.dataset.dashboardCsrf;
+
+        if (!url || !csrf || !window.fetch) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('type', type);
+        formData.append('_token', csrf);
+
+        window.fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        }).catch(() => {});
+    };
+
+    const markDashboardPopoverRead = (type) => {
+        if (!type) {
+            return;
+        }
+
+        setDashboardPopoverRead(type);
+        persistDashboardPopoverRead(type);
+    };
+
+    document.querySelectorAll('[data-dashboard-mark-read]').forEach((button) => {
+        button.addEventListener('click', () => {
+            markDashboardPopoverRead(button.dataset.dashboardMarkRead);
+        });
+    });
+
+    document.querySelectorAll('[data-dashboard-mark-read-link]').forEach((link) => {
+        link.addEventListener('click', () => {
+            markDashboardPopoverRead(link.dataset.dashboardMarkReadLink);
+        });
     });
 
     document.addEventListener('click', (event) => {
@@ -507,6 +553,257 @@ if (laundryModalOpenButtons.length && laundryModals.length) {
     });
 }
 
+const laundryCrudDataElement = document.querySelector('#laundryCrudData');
+const laundryCrudModal = document.querySelector('[data-laundry-modal="cucian"]');
+const laundryCrudForm = document.querySelector('[data-laundry-crud-form]');
+
+if (laundryCrudDataElement && laundryCrudModal && laundryCrudForm) {
+    const payload = JSON.parse(laundryCrudDataElement.textContent || '{"orders":[]}');
+    const laundryOrders = new Map((payload.orders || []).map((order) => [String(order.nota), order]));
+    const laundryHeader = laundryCrudModal.querySelector('[data-laundry-modal-header]');
+    const laundryTitle = laundryHeader?.querySelector('h2');
+    const laundryIntro = laundryHeader?.querySelector('p');
+    const laundryNotaField = laundryCrudForm.querySelector('[data-laundry-nota-field]');
+    const laundryNotaDisplay = laundryCrudForm.querySelector('[data-laundry-nota-display]');
+    const laundrySaveButton = laundryCrudForm.querySelector('[data-laundry-save-button]');
+    const laundrySubmitLabel = laundryCrudForm.querySelector('[data-laundry-submit-label]');
+    const laundryResetButton = laundryCrudForm.querySelector('[data-laundry-form-reset]');
+    const laundryCancelButton = laundryCrudForm.querySelector('.laundry-cancel-button');
+    const laundryDeleteForm = document.querySelector('[data-laundry-delete-form]');
+    const laundryControls = Array.from(laundryCrudForm.querySelectorAll('input:not([type="hidden"]), select, textarea'));
+    const laundryDateInputs = Array.from(laundryCrudForm.querySelectorAll('[data-laundry-date-input]'));
+
+    const ensureSelectOption = (select, value, label = value) => {
+        if (!select || !value) {
+            return;
+        }
+
+        const hasOption = Array.from(select.options).some((option) => option.value === String(value));
+
+        if (!hasOption) {
+            select.add(new Option(label, value));
+        }
+    };
+
+    const openLaundryCrudModal = () => {
+        laundryCrudModal.hidden = false;
+        document.body.classList.add('laundry-modal-open');
+        window.requestAnimationFrame(() => {
+            laundryCrudForm.querySelector('input:not([type="hidden"]):not([readonly]):not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
+        });
+    };
+
+    const setLaundryMode = (mode) => {
+        const isView = mode === 'view';
+
+        laundryControls.forEach((control) => {
+            if (control === laundryNotaDisplay) {
+                control.disabled = false;
+                control.readOnly = true;
+                return;
+            }
+
+            control.disabled = isView;
+
+            if (control.matches('input, textarea')) {
+                control.readOnly = isView;
+            }
+        });
+
+        if (laundrySaveButton) {
+            laundrySaveButton.hidden = isView;
+        }
+
+        if (laundryResetButton) {
+            laundryResetButton.hidden = mode !== 'create';
+        }
+
+        if (laundryCancelButton) {
+            laundryCancelButton.textContent = mode === 'create' ? 'Batal' : 'Tutup';
+        }
+    };
+
+    const resetLaundryForm = () => {
+        laundryCrudForm.reset();
+        laundryCrudForm.action = laundryCrudForm.dataset.createAction || laundryCrudForm.action;
+
+        if (laundryNotaField) {
+            laundryNotaField.value = '';
+        }
+
+        if (laundryNotaDisplay) {
+            laundryNotaDisplay.value = 'Otomatis';
+        }
+
+        laundryDateInputs.forEach((input) => {
+            input.type = 'text';
+        });
+
+        if (laundryTitle) {
+            laundryTitle.textContent = 'Tambah Data Cucian';
+        }
+
+        if (laundryIntro) {
+            laundryIntro.textContent = 'Masukkan data cucian pelanggan dengan lengkap.';
+        }
+
+        if (laundrySubmitLabel) {
+            laundrySubmitLabel.textContent = 'Simpan Data';
+        }
+
+        setLaundryMode('create');
+    };
+
+    const fillLaundryForm = (order) => {
+        const fields = laundryCrudForm.elements;
+        const serviceValue = order.serviceId || order.service || '';
+
+        if (laundryNotaField) {
+            laundryNotaField.value = order.nota || '';
+        }
+
+        if (laundryNotaDisplay) {
+            laundryNotaDisplay.value = order.nota || 'Otomatis';
+        }
+
+        ensureSelectOption(fields.service, serviceValue, order.service || serviceValue);
+        ensureSelectOption(fields.unit, order.unit || 'kg');
+        ensureSelectOption(fields.initial_status, order.status || 'Antrean');
+
+        fields.customer_name.value = order.name || '';
+        fields.phone.value = order.phone || '';
+        fields.service.value = serviceValue;
+        fields.weight.value = order.weight || '';
+        fields.unit.value = order.unit || 'kg';
+        fields.date_in.value = order.dateIn || '';
+        fields.eta.value = order.eta || '';
+        fields.initial_status.value = order.status || 'Antrean';
+        fields.total.value = order.total || '';
+        fields.notes.value = order.notes || '';
+
+        laundryDateInputs.forEach((input) => {
+            input.type = input.value ? 'date' : 'text';
+        });
+    };
+
+    const showLaundryOrder = (nota, mode) => {
+        const order = laundryOrders.get(String(nota));
+
+        if (!order) {
+            return;
+        }
+
+        laundryCrudForm.action = mode === 'edit'
+            ? laundryCrudForm.dataset.updateAction || laundryCrudForm.action
+            : laundryCrudForm.dataset.createAction || laundryCrudForm.action;
+
+        fillLaundryForm(order);
+
+        if (laundryTitle) {
+            laundryTitle.textContent = mode === 'edit' ? 'Edit Data Cucian' : 'Detail Data Cucian';
+        }
+
+        if (laundryIntro) {
+            laundryIntro.textContent = `${order.nota || 'No. nota'} - ${order.name || 'Pelanggan'}`;
+        }
+
+        if (laundrySubmitLabel) {
+            laundrySubmitLabel.textContent = 'Simpan Perubahan';
+        }
+
+        setLaundryMode(mode);
+        openLaundryCrudModal();
+    };
+
+    const normalizeWhatsappNumber = (value) => {
+        let phone = String(value || '').replace(/\D/g, '');
+
+        if (phone.startsWith('0')) {
+            phone = `62${phone.slice(1)}`;
+        } else if (phone.startsWith('8')) {
+            phone = `62${phone}`;
+        }
+
+        return phone;
+    };
+
+    const whatsappMessage = (order) => {
+        const fallback = [
+            `Halo ${order.name || 'Pelanggan'}, berikut informasi cucian Anda.`,
+            `No. Nota: ${order.nota || '-'}`,
+            `Status: ${order.status || '-'}`,
+            `Estimasi selesai: ${order.etaText || order.eta || '-'}`,
+            `Total: ${order.totalText || '-'}`
+        ].join('\n');
+
+        if (!['Selesai', 'Diambil'].includes(order.status || '')) {
+            return fallback;
+        }
+
+        const template = String(payload.whatsappTemplate || '');
+        const message = template.replaceAll('{nama_pelanggan}', order.name || '')
+            .replaceAll('{kode_pesanan}', order.nota || '')
+            .replaceAll('{no_nota}', order.nota || '')
+            .replaceAll('{status_cucian}', order.status || '')
+            .replaceAll('{estimasi_selesai}', order.etaText || order.eta || '')
+            .replaceAll('{total_harga}', order.totalText || '');
+
+        return message.trim() || fallback;
+    };
+
+    document.querySelectorAll('[data-laundry-create]').forEach((button) => {
+        button.addEventListener('click', () => {
+            resetLaundryForm();
+        });
+    });
+
+    laundryResetButton?.addEventListener('click', () => {
+        window.requestAnimationFrame(resetLaundryForm);
+    });
+
+    document.querySelectorAll('[data-laundry-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.laundryAction;
+            const nota = button.dataset.laundryNota;
+            const order = laundryOrders.get(String(nota));
+
+            if (!order) {
+                return;
+            }
+
+            if (action === 'view' || action === 'edit') {
+                showLaundryOrder(nota, action);
+                return;
+            }
+
+            if (action === 'whatsapp') {
+                const phone = normalizeWhatsappNumber(order.phone);
+
+                if (!phone) {
+                    window.alert('Nomor WhatsApp pelanggan belum tersedia.');
+                    return;
+                }
+
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage(order))}`, '_blank', 'noopener');
+                return;
+            }
+
+            if (action !== 'delete' || !laundryDeleteForm) {
+                return;
+            }
+
+            if (!window.confirm(`Hapus data cucian "${order.nota}" atas nama ${order.name || 'pelanggan ini'}? Tindakan ini tidak bisa dibatalkan.`)) {
+                return;
+            }
+
+            laundryDeleteForm.elements.nota.value = order.nota;
+            laundryDeleteForm.submit();
+        });
+    });
+
+    resetLaundryForm();
+}
+
 const packageCrudDataElement = document.querySelector('#packageCrudData');
 const packageModal = document.querySelector('[data-laundry-modal="package"]');
 const packageForm = document.querySelector('[data-package-form]');
@@ -519,6 +816,7 @@ if (packageCrudDataElement && packageModal && packageForm) {
     const packageIntro = packageHeader?.querySelector('p');
     const packageIdField = packageForm.querySelector('[data-package-id-field]');
     const packageCodeField = packageForm.querySelector('[data-package-code-field]');
+    const packageActions = packageForm.querySelector('.laundry-modal-actions');
     const packageSaveButton = packageForm.querySelector('[data-package-save-button]');
     const packageSubmitLabel = packageForm.querySelector('[data-package-submit-label]');
     const packageResetButton = packageForm.querySelector('[data-laundry-form-reset]');
@@ -578,16 +876,20 @@ if (packageCrudDataElement && packageModal && packageForm) {
             }
         });
 
+        if (packageActions) {
+            packageActions.hidden = isView;
+        }
+
         if (packageSaveButton) {
             packageSaveButton.hidden = isView;
         }
 
         if (packageResetButton) {
-            packageResetButton.hidden = mode !== 'create';
+            packageResetButton.hidden = isView;
         }
 
         if (packageCancelButton) {
-            packageCancelButton.textContent = isView ? 'Tutup' : 'Batal';
+            packageCancelButton.textContent = mode === 'create' ? 'Batal' : 'Tutup';
         }
     };
 
@@ -715,6 +1017,317 @@ if (packageCrudDataElement && packageModal && packageForm) {
     });
 
     resetPackageForm();
+}
+
+const customerCrudDataElement = document.querySelector('#customerCrudData');
+const customerModal = document.querySelector('[data-laundry-modal="customer"]');
+const customerForm = document.querySelector('[data-customer-form]');
+
+if (customerCrudDataElement && customerModal && customerForm) {
+    const customerRows = JSON.parse(customerCrudDataElement.textContent || '[]');
+    const customers = new Map(customerRows.map((item) => [String(item.id), item]));
+    const customerHeader = customerModal.querySelector('[data-customer-modal-header]');
+    const customerTitle = customerHeader?.querySelector('h2');
+    const customerIntro = customerHeader?.querySelector('p');
+    const customerIdField = customerForm.querySelector('[data-customer-id-field]');
+    const customerCodeField = customerForm.querySelector('[data-customer-code-field]');
+    const customerSaveButton = customerForm.querySelector('[data-customer-save-button]');
+    const customerSubmitLabel = customerForm.querySelector('[data-customer-submit-label]');
+    const customerResetButton = customerForm.querySelector('[data-laundry-form-reset]');
+    const customerCancelButton = customerForm.querySelector('.laundry-cancel-button');
+    const customerDeleteForm = document.querySelector('[data-customer-delete-form]');
+    const customerControls = Array.from(customerForm.querySelectorAll('input:not([type="hidden"]), select, textarea'));
+    let previousCustomerFocus = null;
+
+    const openCustomerModal = () => {
+        previousCustomerFocus = document.activeElement;
+        customerModal.hidden = false;
+        document.body.classList.add('laundry-modal-open');
+        window.requestAnimationFrame(() => {
+            customerForm.querySelector('[data-laundry-first-field], input:not([type="hidden"]):not([readonly]):not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
+        });
+    };
+
+    const setCustomerControlsState = (mode) => {
+        const isView = mode === 'view';
+
+        customerControls.forEach((control) => {
+            if (control === customerCodeField) {
+                control.disabled = false;
+                control.readOnly = true;
+                return;
+            }
+
+            control.disabled = isView;
+
+            if (control.matches('input, textarea')) {
+                control.readOnly = isView;
+            }
+        });
+
+        if (customerSaveButton) {
+            customerSaveButton.hidden = isView;
+        }
+
+        if (customerResetButton) {
+            customerResetButton.hidden = mode !== 'create';
+        }
+
+        if (customerCancelButton) {
+            customerCancelButton.textContent = mode === 'create' ? 'Batal' : 'Tutup';
+        }
+    };
+
+    const resetCustomerForm = () => {
+        customerForm.reset();
+        customerForm.action = customerForm.dataset.createAction || customerForm.action;
+
+        if (customerIdField) {
+            customerIdField.value = '';
+        }
+
+        if (customerCodeField) {
+            customerCodeField.value = customerCodeField.dataset.nextCustomerCode || customerCodeField.value;
+        }
+
+        if (customerTitle) {
+            customerTitle.textContent = 'Tambah Data Pelanggan';
+        }
+
+        if (customerIntro) {
+            customerIntro.textContent = 'Masukkan data pelanggan dengan lengkap.';
+        }
+
+        if (customerSubmitLabel) {
+            customerSubmitLabel.textContent = 'Simpan Data';
+        }
+
+        setCustomerControlsState('create');
+    };
+
+    const fillCustomerForm = (customer) => {
+        const fields = customerForm.elements;
+
+        if (customerIdField) {
+            customerIdField.value = customer.id || '';
+        }
+
+        if (customerCodeField) {
+            customerCodeField.value = customer.code || customerCodeField.dataset.nextCustomerCode || '';
+        }
+
+        fields.phone.value = customer.phone || '';
+        fields.customer_name.value = customer.name || '';
+        fields.address.value = customer.address || '';
+    };
+
+    const showCustomer = (id, mode) => {
+        const customer = customers.get(String(id));
+
+        if (!customer) {
+            return;
+        }
+
+        customerForm.action = mode === 'edit'
+            ? customerForm.dataset.updateAction || customerForm.action
+            : customerForm.dataset.createAction || customerForm.action;
+
+        fillCustomerForm(customer);
+
+        if (customerTitle) {
+            customerTitle.textContent = mode === 'edit' ? 'Edit Data Pelanggan' : 'Detail Data Pelanggan';
+        }
+
+        if (customerIntro) {
+            const meta = [
+                customer.transactions ? `${customer.transactions} transaksi` : 'Belum ada transaksi',
+                customer.active ? `${customer.active} cucian berjalan` : 'Tidak ada cucian berjalan',
+                `Terakhir: ${customer.last || '-'}`
+            ].join(' | ');
+            customerIntro.textContent = `${customer.code || 'Pelanggan'} - ${customer.name || 'Pelanggan'} (${meta})`;
+        }
+
+        if (customerSubmitLabel) {
+            customerSubmitLabel.textContent = 'Simpan Perubahan';
+        }
+
+        setCustomerControlsState(mode);
+        openCustomerModal();
+    };
+
+    document.querySelectorAll('[data-customer-create]').forEach((button) => {
+        button.addEventListener('click', () => {
+            resetCustomerForm();
+        });
+    });
+
+    customerResetButton?.addEventListener('click', () => {
+        window.requestAnimationFrame(resetCustomerForm);
+    });
+
+    document.querySelectorAll('[data-customer-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.customerAction;
+            const id = button.dataset.customerId;
+
+            if (action === 'view' || action === 'edit') {
+                showCustomer(id, action);
+                return;
+            }
+
+            if (action !== 'delete' || !customerDeleteForm) {
+                return;
+            }
+
+            const customer = customers.get(String(id));
+
+            if (!customer) {
+                return;
+            }
+
+            if (customer.transactions > 0) {
+                window.alert('Pelanggan yang sudah memiliki transaksi tidak bisa dihapus agar riwayat laundry tetap tersimpan.');
+                return;
+            }
+
+            if (!window.confirm(`Hapus pelanggan "${customer.name || customer.code || 'ini'}"? Tindakan ini tidak bisa dibatalkan.`)) {
+                return;
+            }
+
+            customerDeleteForm.elements.customer_id.value = id;
+            customerDeleteForm.submit();
+        });
+    });
+
+    customerModal.addEventListener('click', (event) => {
+        if (event.target === customerModal && previousCustomerFocus) {
+            previousCustomerFocus.focus();
+        }
+    });
+
+    resetCustomerForm();
+}
+
+const transactionDataElement = document.querySelector('#transactionData');
+const transactionReceiptModal = document.querySelector('[data-transaction-receipt-modal]');
+
+if (transactionDataElement && transactionReceiptModal) {
+    const payload = JSON.parse(transactionDataElement.textContent || '{"transactions":[]}');
+    const transactions = new Map((payload.transactions || []).map((item) => [String(item.nota), item]));
+    let previousTransactionFocus = null;
+
+    const transactionReceiptFields = {
+        title: transactionReceiptModal.querySelector('#transactionReceiptTitle'),
+        subtitle: transactionReceiptModal.querySelector('[data-transaction-receipt-subtitle]'),
+        nota: transactionReceiptModal.querySelector('[data-transaction-receipt-nota]'),
+        customer: transactionReceiptModal.querySelector('[data-transaction-receipt-customer]'),
+        phone: transactionReceiptModal.querySelector('[data-transaction-receipt-phone]'),
+        service: transactionReceiptModal.querySelector('[data-transaction-receipt-service]'),
+        weight: transactionReceiptModal.querySelector('[data-transaction-receipt-weight]'),
+        inDate: transactionReceiptModal.querySelector('[data-transaction-receipt-in]'),
+        eta: transactionReceiptModal.querySelector('[data-transaction-receipt-eta]'),
+        status: transactionReceiptModal.querySelector('[data-transaction-receipt-status]'),
+        notesRow: transactionReceiptModal.querySelector('[data-transaction-receipt-notes-row]'),
+        notes: transactionReceiptModal.querySelector('[data-transaction-receipt-notes]'),
+        total: transactionReceiptModal.querySelector('[data-transaction-receipt-total]'),
+        whatsapp: transactionReceiptModal.querySelector('[data-transaction-receipt-wa]'),
+    };
+
+    const setTransactionText = (field, value) => {
+        if (field) {
+            field.textContent = value || '-';
+        }
+    };
+
+    const closeTransactionReceipt = () => {
+        transactionReceiptModal.hidden = true;
+        document.body.classList.remove('laundry-modal-open');
+
+        if (previousTransactionFocus) {
+            previousTransactionFocus.focus();
+        }
+    };
+
+    const openTransactionReceipt = (nota, trigger) => {
+        const transaction = transactions.get(String(nota));
+
+        if (!transaction) {
+            return;
+        }
+
+        previousTransactionFocus = trigger || document.activeElement;
+        setTransactionText(transactionReceiptFields.title, `Detail Nota ${transaction.nota || ''}`.trim());
+        setTransactionText(transactionReceiptFields.subtitle, `${transaction.name || 'Pelanggan'} - ${transaction.service || 'Layanan'}`);
+        setTransactionText(transactionReceiptFields.nota, transaction.nota);
+        setTransactionText(transactionReceiptFields.customer, transaction.name);
+        setTransactionText(transactionReceiptFields.phone, transaction.phone);
+        setTransactionText(transactionReceiptFields.service, transaction.service);
+        setTransactionText(transactionReceiptFields.weight, transaction.weight);
+        setTransactionText(transactionReceiptFields.inDate, transaction.in);
+        setTransactionText(transactionReceiptFields.eta, transaction.eta);
+        setTransactionText(transactionReceiptFields.total, transaction.total);
+
+        if (transactionReceiptFields.status) {
+            transactionReceiptFields.status.className = `status-pill ${transaction.tone || 'blue'}`;
+            transactionReceiptFields.status.textContent = transaction.status || '-';
+        }
+
+        if (transactionReceiptFields.notesRow && transactionReceiptFields.notes) {
+            const notes = String(transaction.notes || '').trim();
+            transactionReceiptFields.notesRow.hidden = notes === '';
+            transactionReceiptFields.notes.textContent = notes;
+        }
+
+        if (transactionReceiptFields.whatsapp) {
+            if (transaction.whatsappUrl) {
+                transactionReceiptFields.whatsapp.href = transaction.whatsappUrl;
+                transactionReceiptFields.whatsapp.hidden = false;
+            } else {
+                transactionReceiptFields.whatsapp.hidden = true;
+                transactionReceiptFields.whatsapp.removeAttribute('href');
+            }
+        }
+
+        transactionReceiptModal.hidden = false;
+        document.body.classList.add('laundry-modal-open');
+        window.requestAnimationFrame(() => {
+            transactionReceiptModal.querySelector('[data-transaction-receipt-close]')?.focus();
+        });
+    };
+
+    document.querySelectorAll('[data-transaction-action="view"]').forEach((button) => {
+        button.addEventListener('click', () => {
+            openTransactionReceipt(button.dataset.transactionNota, button);
+        });
+    });
+
+    transactionReceiptModal.querySelectorAll('[data-transaction-receipt-close]').forEach((button) => {
+        button.addEventListener('click', closeTransactionReceipt);
+    });
+
+    transactionReceiptModal.addEventListener('click', (event) => {
+        if (event.target === transactionReceiptModal) {
+            closeTransactionReceipt();
+        }
+    });
+
+    transactionReceiptModal.querySelector('[data-transaction-receipt-print]')?.addEventListener('click', () => {
+        document.body.classList.add('transaction-receipt-printing');
+        window.print();
+        window.setTimeout(() => {
+            document.body.classList.remove('transaction-receipt-printing');
+        }, 300);
+    });
+
+    document.querySelector('.print-recap-button')?.addEventListener('click', () => {
+        window.print();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !transactionReceiptModal.hidden) {
+            closeTransactionReceipt();
+        }
+    });
 }
 
 const statusOrdersData = document.querySelector('#statusOrdersData');
@@ -869,24 +1482,6 @@ if (settingsForm) {
     const logoutConfirmToggle = settingsForm.querySelector('[data-logout-confirm-toggle]');
     let toastTimer;
 
-    const writeStorage = (key, value) => {
-        try {
-            window.localStorage.setItem(key, value);
-        } catch (error) {
-            return false;
-        }
-
-        return true;
-    };
-
-    const readStorage = (key) => {
-        try {
-            return window.localStorage.getItem(key);
-        } catch (error) {
-            return null;
-        }
-    };
-
     const showSettingsToast = (message) => {
         if (!settingsToast) {
             return;
@@ -912,7 +1507,7 @@ if (settingsForm) {
     const activateField = (field) => {
         settingsFields.forEach((item) => item.classList.toggle('is-active', item === field));
         const label = field.dataset.settingLabel || 'pengaturan';
-        setFeedback(`Mengedit ${label}. Klik Simpan Perubahan setelah selesai.`);
+        setFeedback(`${label} sedang diedit.`);
     };
 
     const updateCounter = () => {
@@ -947,7 +1542,7 @@ if (settingsForm) {
 
             if (field) {
                 const label = field.dataset.settingLabel || 'pengaturan';
-                setFeedback(`${label} diperbarui. Jangan lupa simpan perubahan.`);
+                setFeedback(`${label} diperbarui.`);
             }
         });
     });
@@ -967,13 +1562,9 @@ if (settingsForm) {
     });
 
     if (logoutConfirmToggle) {
-        const storedLogoutPreference = readStorage('ghavaLogoutConfirm');
-        if (storedLogoutPreference !== null) {
-            logoutConfirmToggle.checked = storedLogoutPreference !== 'off';
-        }
         logoutConfirmToggle.addEventListener('change', () => {
-            writeStorage('ghavaLogoutConfirm', logoutConfirmToggle.checked ? 'on' : 'off');
-            showSettingsToast(logoutConfirmToggle.checked ? 'Konfirmasi logout diaktifkan.' : 'Konfirmasi logout dinonaktifkan.');
+            showSettingsToast(logoutConfirmToggle.checked ? 'Konfirmasi logout akan diaktifkan setelah disimpan.' : 'Konfirmasi logout akan dinonaktifkan setelah disimpan.');
+            setFeedback('Preferensi logout diperbarui. Simpan perubahan untuk menerapkan.');
         });
     }
 
@@ -1001,11 +1592,10 @@ const dashboardLogoutLinks = document.querySelectorAll('.dashboard-logout');
 
 if (dashboardLogoutLinks.length) {
     const readLogoutPreference = () => {
-        try {
-            return window.localStorage.getItem('ghavaLogoutConfirm');
-        } catch (error) {
-            return null;
-        }
+        const source = document.querySelector('[data-logout-confirm-default]');
+        const preference = source?.dataset.logoutConfirmDefault;
+
+        return preference === 'off' ? 'off' : 'on';
     };
 
     const modal = document.createElement('div');

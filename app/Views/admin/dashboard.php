@@ -34,12 +34,25 @@ $currentMonthName = $monthNames[(int) $dashboardMonthStart->format('n')];
 $currentYear = $dashboardMonthStart->format('Y');
 $daysInCurrentMonth = (int) $dashboardMonthStart->format('t');
 $currentPeriodLabel = (string) ($dashboardPeriod['range_label'] ?? sprintf('1 - %d %s %s', $daysInCurrentMonth, $currentMonthName, $currentYear));
-$currentPeriodShortLabel = (string) ($dashboardPeriod['short_label'] ?? 'Bulan Ini');
+$currentPeriodShortLabel = (string) ($dashboardPeriod['short_label'] ?? ($currentMonthName . ' ' . $currentYear));
 $currentPeriodFullLabel = (string) ($dashboardPeriod['label'] ?? sprintf('%s (%s)', $currentPeriodShortLabel, $currentPeriodLabel));
 $periodOptions = $dashboardPeriod['options'] ?? [
     ['value' => $dashboardMonthStart->format('Y-m'), 'label' => $currentPeriodFullLabel],
 ];
 $chartDays = [1, 8, 15, 22, $daysInCurrentMonth];
+$dashboardStatusOptions = $statusOptions ?? ['Antrean', 'Diproses', 'Dicuci', 'Dikeringkan', 'Disetrika', 'Selesai', 'Diambil'];
+$dashboardStatusFilterUrl = static function (string $status = '') use ($safeBaseUrl, $dashboardMonthStart): string {
+    $params = [
+        'date_from' => $dashboardMonthStart->format('Y-m-d'),
+        'date_to' => $dashboardMonthStart->modify('last day of this month')->format('Y-m-d'),
+    ];
+
+    if ($status !== '') {
+        $params['status'] = $status;
+    }
+
+    return $safeBaseUrl . '/admin/cucian?' . htmlspecialchars(http_build_query($params), ENT_QUOTES, 'UTF-8');
+};
 
 $formatShortAmount = static function (float $value): string {
     if ($value >= 1000000) {
@@ -121,10 +134,10 @@ $sidebarItems = [
 ];
 
 $summaryCards = $summaryCards ?? [
-    ['tone' => 'blue', 'icon' => '&#128101;', 'label' => 'Total Pelanggan', 'value' => '87', 'meta' => 'Bulan Ini'],
-    ['tone' => 'green', 'icon' => '&#128722;', 'label' => 'Total Pesanan', 'value' => '132', 'meta' => 'Bulan Ini'],
-    ['tone' => 'purple', 'icon' => '&#128179;', 'label' => 'Total Pendapatan', 'value' => 'Rp 8.450.000', 'meta' => 'Bulan Ini'],
-    ['tone' => 'orange', 'icon' => '&#128203;', 'label' => 'Pesanan Selesai', 'value' => '98', 'meta' => 'Bulan Ini'],
+    ['tone' => 'blue', 'icon' => '&#128101;', 'label' => 'Total Pelanggan', 'value' => '87', 'meta' => $currentPeriodShortLabel],
+    ['tone' => 'green', 'icon' => '&#128722;', 'label' => 'Total Pesanan', 'value' => '132', 'meta' => $currentPeriodShortLabel],
+    ['tone' => 'purple', 'icon' => '&#128179;', 'label' => 'Total Pendapatan', 'value' => 'Rp 8.450.000', 'meta' => $currentPeriodShortLabel],
+    ['tone' => 'orange', 'icon' => '&#128203;', 'label' => 'Pesanan Selesai', 'value' => '98', 'meta' => $currentPeriodShortLabel],
 ];
 
 $orders = $orders ?? [
@@ -255,7 +268,15 @@ ob_start();
                 <article class="dashboard-panel status-panel-admin">
                     <div class="panel-header">
                         <h2>Status Cucian</h2>
-                        <button type="button">Semua Status <span aria-hidden="true">&#8964;</span></button>
+                        <details class="panel-status-menu">
+                            <summary class="panel-status-summary">Semua Status <span aria-hidden="true">&#8964;</span></summary>
+                            <div class="panel-status-options">
+                                <a href="<?= $dashboardStatusFilterUrl() ?>">Semua Status</a>
+                                <?php foreach ($dashboardStatusOptions as $statusOption): ?>
+                                    <a href="<?= $dashboardStatusFilterUrl((string) $statusOption) ?>"><?= htmlspecialchars((string) $statusOption, ENT_QUOTES, 'UTF-8') ?></a>
+                                <?php endforeach; ?>
+                            </div>
+                        </details>
                     </div>
                     <?php
                     $statuses = $statusSummary ?? [
@@ -336,7 +357,7 @@ ob_start();
                 <article class="dashboard-panel orders-panel">
                     <div class="panel-header">
                         <h2>Pesanan Terbaru</h2>
-                        <button type="button">Lihat Semua</button>
+                        <a class="panel-action-link" href="<?= $safeBaseUrl ?>/admin/transaksi">Lihat Semua</a>
                     </div>
                     <div class="table-wrap">
                         <table class="dashboard-table">
