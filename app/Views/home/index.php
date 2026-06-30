@@ -405,7 +405,7 @@ $faqItems = [
                 <p><span aria-hidden="true"><?= homeIcon('map') ?></span><?= htmlspecialchars($setting('address', 'Jl. Poros Hartaco Indah, Kel. Sudiang Raya, Kec. Biringkanaya, Kota Makassar, Sulawesi Selatan 90242'), ENT_QUOTES, 'UTF-8') ?></p>
             </section>
         </div>
-        <small>&copy; 2024 Ghava Laundry. All rights reserved.</small>
+        <small>&copy; 2026 Ghava Laundry. All rights reserved.</small>
     </footer>
 </div>
 <?php

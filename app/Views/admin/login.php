@@ -107,7 +107,7 @@ ob_start();
     </main>
 
     <footer class="admin-login-footer">
-        <small>&copy; 2024 Ghava Laundry. Semua hak dilindungi.</small>
+        <small>&copy; 2026 Ghava Laundry. Semua hak dilindungi.</small>
     </footer>
 </div>
 <?php
