@@ -4916,7 +4916,8 @@ body.laundry-modal-open {
     opacity: 0.42;
 }
 
-.transaction-actions .wa img {
+.transaction-actions .wa img,
+.transaction-actions .wa .whatsapp-mark-icon {
     display: block;
     width: 23px;
     height: 23px;
@@ -5065,11 +5066,13 @@ body.laundry-modal-open {
     display: none;
 }
 
-.transaction-receipt-wa img {
+.transaction-receipt-wa img,
+.transaction-receipt-wa .whatsapp-mark-icon {
     display: block;
     width: 22px;
     height: 22px;
     border-radius: 50%;
+    flex: 0 0 auto;
 }
 
 .transaction-pagination {
@@ -5094,13 +5097,40 @@ body.laundry-modal-open {
 }
 
 @media print {
-    body.transaction-receipt-printing * {
-        visibility: hidden;
+    @page {
+        size: A4;
+        margin: 12mm;
     }
 
-    body.transaction-receipt-printing [data-transaction-receipt-modal],
-    body.transaction-receipt-printing [data-transaction-receipt-modal] * {
-        visibility: visible;
+    body.transaction-receipt-printing {
+        color: #06154a;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body.transaction-receipt-printing .admin-dashboard-page {
+        display: block;
+        width: 100%;
+        max-width: none;
+        min-height: auto;
+        background: #ffffff;
+        overflow: visible;
+    }
+
+    body.transaction-receipt-printing .dashboard-content {
+        display: block;
+        grid-column: auto;
+        max-width: none;
+        overflow: visible;
+    }
+
+    body.transaction-receipt-printing .dashboard-sidebar,
+    body.transaction-receipt-printing .dashboard-topbar,
+    body.transaction-receipt-printing .dashboard-main,
+    body.transaction-receipt-printing #transactionData,
+    body.transaction-receipt-printing .transaction-print-hidden {
+        display: none !important;
     }
 
     body.transaction-receipt-printing [data-transaction-receipt-modal] {
@@ -5109,18 +5139,107 @@ body.laundry-modal-open {
         padding: 0;
         background: #ffffff;
         backdrop-filter: none;
+        overflow: visible;
     }
 
     body.transaction-receipt-printing .transaction-receipt-dialog {
         width: 100%;
-        max-width: none;
+        max-width: 172mm;
+        margin: 0 auto;
         padding: 0;
         border: 0;
+        border-radius: 0;
         box-shadow: none;
     }
 
-    body.transaction-receipt-printing .transaction-print-hidden {
-        display: none !important;
+    body.transaction-receipt-printing .transaction-receipt-body {
+        gap: 6mm;
+        margin: 0;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-body::before {
+        content: "NOTA TRANSAKSI";
+        display: block;
+        padding-bottom: 5mm;
+        border-bottom: 1pt solid #d9e3f0;
+        color: #061a64;
+        font-size: 16pt;
+        font-weight: 900;
+        letter-spacing: 0;
+        text-align: center;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-brand {
+        grid-template-columns: 20mm minmax(0, 1fr);
+        gap: 5mm;
+        padding-bottom: 6mm;
+        border-bottom: 1pt solid #d9e3f0;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-brand > span {
+        width: 20mm;
+        height: 20mm;
+        border-radius: 3mm;
+        background: #f8fbff;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-brand img {
+        max-width: 15mm;
+        max-height: 15mm;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-brand strong {
+        font-size: 17pt;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-brand small {
+        margin-top: 1.5mm;
+        font-size: 10pt;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4mm;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-grid > div,
+    body.transaction-receipt-printing .transaction-receipt-note {
+        padding: 4mm;
+        border: 0.8pt solid #dce7f5;
+        border-radius: 2mm;
+        background: #fbfdff;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-grid dt,
+    body.transaction-receipt-printing .transaction-receipt-note span,
+    body.transaction-receipt-printing .transaction-receipt-total span {
+        font-size: 8.5pt;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-grid dd,
+    body.transaction-receipt-printing .transaction-receipt-note strong {
+        font-size: 11pt;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-total {
+        padding: 5mm;
+        border-radius: 2mm;
+        background: #0878ff !important;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-total strong {
+        font-size: 18pt;
+    }
+
+    body.transaction-receipt-printing .transaction-receipt-body::after {
+        content: "Terima kasih telah mempercayakan cucian Anda kepada Ghava Laundry.";
+        display: block;
+        padding-top: 5mm;
+        border-top: 1pt solid #d9e3f0;
+        color: #5d6a83;
+        font-size: 9.5pt;
+        line-height: 1.4;
+        text-align: center;
     }
 }
 
@@ -5230,7 +5349,8 @@ body.laundry-modal-open {
     background: transparent;
 }
 
-.transaction-activity-list .activity-item > span.whatsapp-activity-icon img {
+.transaction-activity-list .activity-item > span.whatsapp-activity-icon img,
+.transaction-activity-list .activity-item > span.whatsapp-activity-icon .whatsapp-mark-icon {
     display: block;
     width: 29px;
     height: 29px;
